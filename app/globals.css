@@ -1,0 +1,51 @@
+@import "tailwindcss";
+@import "tw-animate-css";
+@import "../vendor/shadcn-tailwind-4.13.0.css";
+
+:root {
+  --background: #f9f8fb; --foreground: #393540; --card: #fff; --card-foreground: #393540;
+  --popover: #fff; --popover-foreground: #393540; --primary: #399dc8; --primary-foreground: #fff;
+  --secondary: #e8f4fa; --secondary-foreground: #276b8c; --muted: #f1f0f5; --muted-foreground: #746e7a;
+  --accent: #eaf6fb; --accent-foreground: #276b8c; --destructive: #b84965; --border: #e7e4ed;
+  --input: #e4e1eb; --ring: #81c8e4; --radius: 1rem;
+  --sidebar: #fff; --sidebar-foreground: #393540; --sidebar-primary: #399dc8; --sidebar-primary-foreground: #fff;
+  --sidebar-accent: #eaf6fb; --sidebar-accent-foreground: #276b8c; --sidebar-border: #e7e4ed; --sidebar-ring: #81c8e4;
+}
+.dark {
+  --background: #202331; --foreground: #f1edf5; --card: #2b2e3d; --card-foreground: #f1edf5;
+  --popover: #303443; --popover-foreground: #f1edf5; --primary: #84c9e7; --primary-foreground: #182a38;
+  --secondary: #364052; --secondary-foreground: #d3ebf4; --muted: #343744; --muted-foreground: #c0bcc9;
+  --accent: #344958; --accent-foreground: #c8e8f5; --destructive: #ed91a8; --border: #4b4c5a;
+  --input: #555867; --ring: #84c9e7; --sidebar: #2b2e3d; --sidebar-foreground: #f1edf5;
+  --sidebar-primary: #84c9e7; --sidebar-primary-foreground: #182a38; --sidebar-accent: #344958;
+  --sidebar-accent-foreground: #c8e8f5; --sidebar-border: #4b4c5a; --sidebar-ring: #84c9e7;
+}
+@theme inline {
+  --color-background: var(--background); --color-foreground: var(--foreground);
+  --color-card: var(--card); --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover); --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary); --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary); --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted); --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent); --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive); --color-border: var(--border); --color-input: var(--input);
+  --color-ring: var(--ring); --color-sidebar: var(--sidebar); --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar-primary: var(--sidebar-primary); --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-accent: var(--sidebar-accent); --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-border: var(--sidebar-border); --color-sidebar-ring: var(--sidebar-ring);
+  --radius-sm: calc(var(--radius) - 6px); --radius-md: calc(var(--radius) - 3px);
+  --radius-lg: var(--radius); --radius-xl: calc(var(--radius) + 6px);
+  --font-sans: Arial, Helvetica, sans-serif;
+}
+* { box-sizing: border-box; }
+body { min-height: 100vh; background: var(--background); color: var(--foreground); font-family: Arial, Helvetica, sans-serif; font-size: 16px; }
+button,input,textarea { font: inherit; }
+.serif { font-family: Georgia, "Times New Roman", serif; }
+.soft-bg { background: radial-gradient(circle at 3% 3%, #fff8bf98, transparent 27rem), radial-gradient(circle at 93% 5%, #fbdcedb9, transparent 31rem), radial-gradient(circle at 88% 90%, #c8edfdc7, transparent 35rem), radial-gradient(circle at 3% 96%, #ffdcdec0, transparent 31rem), var(--background); }
+.dark .soft-bg { background: radial-gradient(circle at 95% 0%, #483552, transparent 33rem), radial-gradient(circle at 86% 90%, #284457, transparent 36rem), var(--background); }
+.glass { background: color-mix(in srgb, var(--card) 88%, transparent); border: 1px solid var(--border); box-shadow: 0 16px 45px #30273b0e; backdrop-filter: blur(14px); }
+.status-pill { display: inline-flex; align-items: center; padding: .3rem .7rem; border-radius: 999px; font-size: .82rem; font-weight: 650; white-space: nowrap; }
+.status-Baru { background:#e5f3fc;color:#256c97 } .status-Diproses { background:#f0eafa;color:#715aa1 }
+.status-Menunggu { background:#fff0d8;color:#895c1d } .status-Selesai { background:#e4f4e9;color:#31704f }
+.status-Dibatalkan { background:#f9e8eb;color:#9a4c60 } .dark .status-pill { filter:brightness(.88); color:#292633 }
+@media print { body * { visibility:hidden!important } .print-area,.print-area * { visibility:visible!important } .print-area { position:fixed!important;left:0!important;top:0!important;width:100%!important;max-width:none!important;border:0!important;box-shadow:none!important } body { background:white!important;color:#222!important } }
