@@ -1,7 +1,7 @@
 import type {Config} from "@netlify/functions";
 import webpush from "web-push";
 
-export const config: Config = {schedule:"* * * * *"};
+export const config: Config = {schedule:"*/5 * * * *"};
 
 type Order = {id:string;owner_id:string;invoice_seq:number;rental_end_at:string;status:string};
 type Device = {id:string;owner_id:string;endpoint:string;p256dh:string;auth:string};
@@ -72,7 +72,7 @@ export default async function sendRentalReminders() {
     }
   }
 
-  // Satu eksekusi Netlify dibatasi 30 detik. Sisa pekerjaan dicoba pada menit berikutnya.
+  // Satu eksekusi Netlify dibatasi 30 detik. Sisa pekerjaan dicoba pada jadwal berikutnya.
   const pending=jobs.slice(0,60);
   await Promise.all(Array.from({length:Math.min(6,pending.length)},async()=>{
     while(pending.length){
