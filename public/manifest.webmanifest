@@ -1,0 +1,11 @@
+{
+  "id": "/",
+  "name": "Miuu Store",
+  "short_name": "Miuu",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#211a31",
+  "theme_color": "#7950b0",
+  "icons": [{"src":"/favicon.svg","sizes":"any","type":"image/svg+xml"}]
+}

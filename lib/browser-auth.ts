@@ -2,16 +2,19 @@ export type User={id:string;email:string;user_metadata?:{full_name?:string}};
 type Session={access_token:string;refresh_token:string;expires_at:number;user?:User};
 const storageKey="ruang-order-supabase-session";
 let refreshPromise:Promise<Session|null>|null=null;
+
 const config=()=>{
   const url=process.env.NEXT_PUBLIC_SUPABASE_URL?.replace(/\/$/,"");
   const key=process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
   if(!url||!key)throw new Error("Koneksi Supabase belum diatur. Isi .env.local terlebih dahulu.");
   return {url,key};
 };
+
 function saved():Session|null{
   try{const x=JSON.parse(localStorage.getItem(storageKey)||"null") as Session;return x?.refresh_token?x:null;}catch{return null;}
 }
 function store(x:Session|null){if(x)localStorage.setItem(storageKey,JSON.stringify(x));else localStorage.removeItem(storageKey);}
+
 async function auth(path:string,method:string,body?:unknown,token?:string){
   const {url,key}=config();
   const response=await fetch(url+"/auth/v1/"+path,{method,headers:{apikey:key,"Content-Type":"application/json",...(token?{Authorization:"Bearer "+token}:{})},...(body?{body:JSON.stringify(body)}:{})});
@@ -19,11 +22,13 @@ async function auth(path:string,method:string,body?:unknown,token?:string){
   if(!response.ok)throw new Error(String(result.msg||result.error_description||result.error||"Login gagal."));
   return result;
 }
+
 function setFromAuth(result:Record<string,unknown>):Session|null{
   if(!result.access_token||!result.refresh_token)return null;
   const session:Session={access_token:String(result.access_token),refresh_token:String(result.refresh_token),expires_at:Date.now()+Number(result.expires_in||3600)*1000,user:result.user as User|undefined};
   store(session);return session;
 }
+
 export async function signIn(email:string,password:string){
   const result=await auth("token?grant_type=password","POST",{email,password});
   const session=setFromAuth(result);if(!session)throw new Error("Login belum berhasil.");
@@ -54,7 +59,29 @@ export async function currentUser():Promise<User|null>{
   }
   store(null);return null;
 }
-export async function signOut(){const token=await accessToken();store(null);if(token)try{await auth("logout","POST",{},token);}catch{}}
+
+export async function signOut(){
+  const token=await accessToken();
+  if(token&&typeof navigator!=="undefined"&&"serviceWorker" in navigator){
+    try {
+      const registration=await navigator.serviceWorker.getRegistration("/");
+      const subscription=await registration?.pushManager.getSubscription();
+      if(subscription){
+        const controller=new AbortController();
+        const timer=setTimeout(()=>controller.abort(),3000);
+        try {
+          await fetch("/api/push",{method:"DELETE",signal:controller.signal,
+            headers:{Authorization:"Bearer "+token,"Content-Type":"application/json"},
+            body:JSON.stringify({endpoint:subscription.endpoint})});
+        } finally {clearTimeout(timer);}
+        await subscription.unsubscribe();
+      }
+    } catch {/* Sesi tetap ditutup jika perangkat sedang offline. */}
+  }
+  store(null);
+  if(token)try{await auth("logout","POST",{},token);}catch{}
+}
+
 export async function authFetch(path:string,init:RequestInit={}){
   const token=await accessToken();
   if(!token)return new Response(JSON.stringify({error:"Sesi habis. Silakan muat ulang dan masuk kembali."}),{status:401});

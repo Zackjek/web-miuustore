@@ -4,9 +4,11 @@ import {Bell,CalendarClock,Check,ExternalLink,SquarePen} from "lucide-react";
 import {Button} from "@/components/ui/button";
 import type {Order} from "./order-types";
 import {invoice,rentalEndFmt,rentalPhase} from "./order-types";
+import {PhonePush} from "./phone-push";
 
 type Props={orders:Order[];sellerWa:string;now:number;browserAlerts:boolean;enableBrowserAlerts:()=>Promise<void>;openEditor:(order:Order)=>void;openSettings:()=>void;markLogout:(order:Order,completed:boolean)=>Promise<void>};
 const card="glass rounded-[22px] p-5 sm:p-6";
+
 export function LogoutView({orders,sellerWa,now,browserAlerts,enableBrowserAlerts,openEditor,openSettings,markLogout}:Props){
   const [filter,setFilter]=useState<"pending"|"all">("pending"),[busy,setBusy]=useState<string|null>(null);
   const list=orders.filter(o=>o.rental_end_at&&o.status!=="Dibatalkan")
@@ -17,7 +19,9 @@ export function LogoutView({orders,sellerWa,now,browserAlerts,enableBrowserAlert
     });
   const phone=sellerWa.replace(/\D/g,"").replace(/^0/,"62");
   async function complete(o:Order,flag:boolean){setBusy(o.id);try{await markLogout(o,flag);}catch{}finally{setBusy(null);}}
+
   return <div className="space-y-4">
+    <PhonePush/>
     <div className={card+" flex flex-wrap items-center justify-between gap-4"}>
       <div><h2 className="font-semibold">Peringatan masa sewa</h2><p className="mt-1 max-w-2xl text-sm text-muted-foreground">Pengingat muncul 3 hari sebelum waktu akhir dan tetap ada sampai kamu menandai logout selesai. Isi akhir masa sewa pada setiap order aplikasi.</p></div>
       {!browserAlerts&&<Button variant="outline" onClick={()=>void enableBrowserAlerts()} className="rounded-xl"><Bell size={16}/> Aktifkan notifikasi browser</Button>}
