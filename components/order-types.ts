@@ -19,7 +19,7 @@ export const invoice = (n:number) => "INV-"+String(n).padStart(5,"0");
 export const daysLeft = (s:string) => s ? Math.ceil((new Date(s+"T12:00:00").getTime()-Date.now())/86400000) : null;
 export const addDays = (s:string,days:number) => {const d=new Date(s+"T12:00:00");d.setDate(d.getDate()+Number(days||0));return d.toISOString().slice(0,10);};
 export const orderDue = (o:Order) => o.due_date || addDays(o.order_date,o.warranty_days);
-export const defaultSettings:Settings={shop_name:"Ruang Order",currency:"Rp",default_warranty:30,receipt_style:"thermal",receipt_color:"#399dc8",buyer_template:"Halo {buyer}, pesanan {invoice} untuk {product} sedang diproses. Cek progres: {link}",account_template:"Halo {buyer}, pesanan {invoice} untuk {product} sudah selesai. Terima kasih!",seller_wa:""};
+export const defaultSettings:Settings={shop_name:"Miuu Store",currency:"Rp",default_warranty:30,receipt_style:"thermal",receipt_color:"#7950b0",buyer_template:"Halo {buyer}, pesanan {invoice} untuk {product} sedang diproses. Cek progres: {link}",account_template:"Halo {buyer}, pesanan {invoice} untuk {product} sudah selesai. Terima kasih!",seller_wa:""};
 export type RentalPhase = "none"|"later"|"soon"|"expired"|"logged_out"|"cancelled";
 export function rentalPhase(order:Order,now=Date.now()):RentalPhase {
   if(order.status==="Dibatalkan")return "cancelled";

@@ -28,12 +28,24 @@ export function OrderForm({initial,products,suppliers,settings,onSubmit,pending}
   const submit=(e:FormEvent)=>{e.preventDefault();void onSubmit({...v,rental_end_at:wibInputToIso(String(v.rental_end_at))});};
   const profit=(Number(v.price)-Number(v.cost))*Number(v.quantity)-Number(v.refund_amount);
   return <form onSubmit={submit} className="max-h-[min(72vh,800px)] space-y-5 overflow-y-auto pr-1">
+    <div>
+      <p className="mb-3 text-xs font-bold uppercase tracking-[.12em] text-primary">Info buyer</p>
     <div className="grid gap-4 sm:grid-cols-2">
       <div><label className={label} htmlFor="order-buyer">Buyer *</label><Input id="order-buyer" required className={field} placeholder="@nama buyer" value={String(v.buyer)} onChange={e=>set("buyer",e.target.value)}/></div>
       <div><label className={label} htmlFor="order-wa">No. WhatsApp buyer</label><Input id="order-wa" className={field} placeholder="08..." value={String(v.buyer_wa)} onChange={e=>set("buyer_wa",e.target.value)}/></div>
     </div>
+    <div className="miuu-note-panel mt-4 rounded-2xl p-4">
+      <p className="mb-3 text-sm font-bold text-primary">✎ &nbsp;Catatan order</p>
+      <div className="grid gap-4 sm:grid-cols-2">
+        <div><label className={label} htmlFor="order-public">Catatan progres untuk buyer</label><p id="order-public-hint" className="mb-2 text-xs text-muted-foreground">Terlihat di link progres pesanan</p><Textarea id="order-public" aria-describedby="order-public-hint" className="min-h-24 rounded-xl bg-card" placeholder="Contoh: akun sedang disiapkan" value={String(v.public_note)} onChange={e=>set("public_note",e.target.value)}/></div>
+        <div><label className={label} htmlFor="order-notes">Catatan pribadi</label><p id="order-notes-hint" className="mb-2 text-xs text-muted-foreground">Hanya kamu yang bisa melihatnya</p><Textarea id="order-notes" aria-describedby="order-notes-hint" className="min-h-24 rounded-xl bg-card" placeholder="Detail internal untuk toko" value={String(v.notes)} onChange={e=>set("notes",e.target.value)}/></div>
+      </div>
+    </div>
+    </div>
+    <div className="border-t border-border pt-5">
+      <p className="mb-3 text-xs font-bold uppercase tracking-[.12em] text-primary">Detail pesanan</p>
     <div><span className={label}>Pilih dari katalog (opsional)</span><Select value={productId} onValueChange={id=>{setProductId(id);const p=products.find(x=>x.id===id);if(p)setV(current=>({...current,product_name:p.name,variant:p.variant,duration:p.duration,price:p.price,cost:p.cost,supplier:p.supplier}));}}><SelectTrigger className="h-10 w-full rounded-xl bg-card text-sm"><SelectValue/></SelectTrigger><SelectContent><SelectItem value="custom">Isi produk sendiri</SelectItem>{products.map(p=><SelectItem key={p.id} value={p.id}>{[p.name,p.variant,p.duration].filter(Boolean).join(" · ")} — Rp {p.price.toLocaleString("id-ID")}</SelectItem>)}</SelectContent></Select></div>
-    <div className="grid gap-4 sm:grid-cols-2">
+    <div className="mt-4 grid gap-4 sm:grid-cols-2">
       <div><label className={label} htmlFor="order-product">Aplikasi / produk *</label><Input id="order-product" required className={field} placeholder="Netflix" value={String(v.product_name)} onChange={e=>set("product_name",e.target.value)}/></div>
       <div><label className={label} htmlFor="order-variant">Tipe / paket</label><Input id="order-variant" className={field} placeholder="Sharing 1P1U" value={String(v.variant)} onChange={e=>set("variant",e.target.value)}/></div>
       <div><label className={label} htmlFor="order-duration">Durasi</label><Input id="order-duration" className={field} placeholder="1 Bulan" value={String(v.duration)} onChange={e=>set("duration",e.target.value)}/></div>
@@ -52,8 +64,7 @@ export function OrderForm({initial,products,suppliers,settings,onSubmit,pending}
       <div><label className={label} htmlFor="order-refund">Refund tersimpan (Rp)</label><Input id="order-refund" type="number" min="0" className={field} value={Number(v.refund_amount)} onChange={e=>set("refund_amount",e.target.value)}/></div>
       <div className="flex items-end"><div className="w-full rounded-xl bg-secondary p-3 text-sm">Perkiraan profit <strong className="block text-lg text-primary">Rp {profit.toLocaleString("id-ID")}</strong></div></div>
     </div>
-    <div><label className={label} htmlFor="order-public">Catatan progres untuk buyer</label><Textarea id="order-public" className="min-h-20 rounded-xl bg-card" placeholder="Contoh: akun sedang disiapkan" value={String(v.public_note)} onChange={e=>set("public_note",e.target.value)}/></div>
-    <div><label className={label} htmlFor="order-notes">Catatan pribadi (tidak tampil di link progres)</label><Textarea id="order-notes" className="min-h-20 rounded-xl bg-card" value={String(v.notes)} onChange={e=>set("notes",e.target.value)}/></div>
+    </div>
     <div className="sticky bottom-0 flex justify-end gap-3 bg-card/95 py-3"><Button type="submit" disabled={pending} className="h-11 rounded-xl px-7">{pending?"Menyimpan...":initial?"Simpan perubahan":"Simpan order ♡"}</Button></div>
   </form>;
 }

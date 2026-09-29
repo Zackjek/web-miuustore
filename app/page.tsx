@@ -1,14 +1,18 @@
 "use client";
 import {useEffect,useState,type FormEvent} from "react";
 import Link from "next/link";
-import {Search,ArrowRight,LockKeyhole} from "lucide-react";
+import {Search,ArrowRight,Moon,Sun} from "lucide-react";
 import Workspace from "@/components/workspace";
+import {MiuuCat} from "@/components/miuu-cat";
 import {currentUser,signIn,signOut,signUp,type User} from "@/lib/browser-auth";
 
 export default function Home(){
   const [user,setUser]=useState<User|null>(null),[checking,setChecking]=useState(true),[mode,setMode]=useState<"login"|"signup">("login");
   const [email,setEmail]=useState(""),[password,setPassword]=useState(""),[busy,setBusy]=useState(false),[message,setMessage]=useState("");
+  const [dark,setDark]=useState(false);
   useEffect(()=>{void currentUser().then(setUser).catch(()=>{}).finally(()=>setChecking(false));},[]);
+  useEffect(()=>{const stored=localStorage.getItem("ruang-order-theme")==="dark";setDark(stored);document.documentElement.classList.toggle("dark",stored);},[user]);
+  const toggleTheme=()=>{const next=!dark;setDark(next);document.documentElement.classList.toggle("dark",next);localStorage.setItem("ruang-order-theme",next?"dark":"light");};
   async function submit(e:FormEvent){
     e.preventDefault();setMessage("");setBusy(true);
     try{
@@ -20,10 +24,11 @@ export default function Home(){
   if(checking)return <main className="soft-bg flex min-h-screen items-center justify-center">Memeriksa sesi...</main>;
   if(user)return <Workspace displayName={user.user_metadata?.full_name||user.email?.split("@")[0]||"Seller"} onSignOut={()=>{void signOut().finally(()=>setUser(null));}}/>;
   return <main className="soft-bg flex min-h-screen items-center justify-center px-4 py-10">
-    <div className="glass w-full max-w-[430px] rounded-[30px] p-7 sm:p-9">
-      <div className="mx-auto flex size-12 items-center justify-center rounded-2xl bg-primary text-primary-foreground"><LockKeyhole size={24}/></div>
-      <h1 className="serif mt-5 text-center text-4xl tracking-tight">ruang order <span className="text-primary">✿</span></h1>
-      <p className="mt-1 text-center text-sm tracking-[.17em] text-muted-foreground">RESELLER WORKSPACE</p>
+    <div className="glass relative w-full max-w-[430px] rounded-[30px] p-7 sm:p-9">
+      <button type="button" aria-label="Ganti tema" onClick={toggleTheme} className="absolute right-5 top-5 flex size-9 items-center justify-center rounded-full border border-border bg-card text-primary hover:bg-accent">{dark?<Sun size={18}/>:<Moon size={18}/>}</button>
+      <div className="mx-auto flex size-14 items-center justify-center rounded-2xl border border-border bg-secondary"><MiuuCat className="size-11"/></div>
+      <h1 className="serif mt-5 text-center text-4xl tracking-tight">Miuu Store<span className="text-primary">.</span></h1>
+      <p className="mt-1 text-center text-xs font-semibold tracking-[.17em] text-muted-foreground">LITTLE ORDER STUDIO</p>
       <Link href="/cek" className="mt-8 flex min-h-12 items-center justify-center gap-2 rounded-xl bg-primary px-5 font-semibold text-primary-foreground shadow-lg shadow-primary/20 hover:opacity-90"><Search size={17}/> Cek progres pesanan</Link>
       <div className="my-5 flex items-center gap-3 text-xs text-muted-foreground"><span className="h-px flex-1 bg-border"/><span>UNTUK PENGELOLA</span><span className="h-px flex-1 bg-border"/></div>
       <form onSubmit={e=>void submit(e)} className="space-y-3">

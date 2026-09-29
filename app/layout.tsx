@@ -1,8 +1,8 @@
 import type { Metadata } from "next";
 import "./globals.css";
 export const metadata: Metadata = {
-  title: "Ruang Order — kelola pesananmu",
-  description: "Catat pesanan reseller, hitung profit, dan bagikan progres dengan kode order.",
+  title: "Miuu Store — little order studio",
+  description: "Catat pesanan Miuu Store, hitung profit, dan bagikan progres dengan kode order.",
   icons: { icon: "/favicon.svg", shortcut: "/favicon.svg" },
 };
 export default function RootLayout({ children }: Readonly<{children: React.ReactNode}>) {

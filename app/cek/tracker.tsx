@@ -1,9 +1,10 @@
 "use client";
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { Search, ArrowLeft, Heart, Moon, Sun } from "lucide-react";
+import { ArrowLeft, Heart, Moon, Sun } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
+import { MiuuCat } from "@/components/miuu-cat";
 
 type Result = {order:{invoice_seq:number;product_name:string;variant:string;duration:string;order_date:string;due_date:string;warranty_days:number;rental_end_at:string|null;status:string;public_note:string;updated_at:string};events:{status:string;note:string;created_at:string}[]};
 const date = (s:string) => s ? new Intl.DateTimeFormat("id-ID",{day:"numeric",month:"long",year:"numeric"}).format(new Date(s)) : "—";
@@ -21,7 +22,8 @@ export default function Tracker() {
   const [loading,setLoading]=useState(false);
   const [dark,setDark]=useState(false);
   useEffect(()=>{ const p=new URLSearchParams(location.search).get("kode"); if(p) {setCode(p); void search(p);} },[]);
-  useEffect(()=>{document.documentElement.classList.toggle("dark",dark);},[dark]);
+  useEffect(()=>{const saved=localStorage.getItem("ruang-order-theme")==="dark";setDark(saved);document.documentElement.classList.toggle("dark",saved);},[]);
+  const toggleTheme=()=>{const next=!dark;setDark(next);document.documentElement.classList.toggle("dark",next);localStorage.setItem("ruang-order-theme",next?"dark":"light");};
   async function search(value=code) {
     let parsed=value.trim();
     try {if(parsed.startsWith("http")) parsed=new URL(parsed).searchParams.get("kode")||parsed;} catch {}
@@ -38,11 +40,11 @@ export default function Tracker() {
   return <main className="soft-bg min-h-screen px-4 py-9 sm:py-14">
     <div className="mx-auto max-w-2xl">
       <div className="mb-8 flex items-center justify-between">
-        <Link href="/" className="inline-flex items-center gap-2 text-sm font-semibold text-muted-foreground hover:text-foreground"><ArrowLeft size={18}/> Ruang Order</Link>
-        <Button variant="ghost" size="icon" aria-label="Ganti tema" onClick={()=>setDark(!dark)}>{dark?<Sun size={19}/>:<Moon size={19}/>}</Button>
+        <Link href="/" className="inline-flex items-center gap-2 text-sm font-semibold text-muted-foreground hover:text-foreground"><ArrowLeft size={18}/> <MiuuCat className="size-7"/> Miuu Store</Link>
+        <Button variant="ghost" size="icon" aria-label="Ganti tema" onClick={toggleTheme}>{dark?<Sun size={19}/>:<Moon size={19}/>}</Button>
       </div>
       <div className="glass rounded-[28px] p-6 sm:p-9">
-        <div className="mb-6 flex size-12 items-center justify-center rounded-2xl bg-secondary text-primary"><Search size={23}/></div>
+        <div className="mb-6 flex size-12 items-center justify-center rounded-2xl bg-secondary text-primary"><MiuuCat className="size-10"/></div>
         <h1 className="serif text-3xl sm:text-4xl">Cek progres pesanan</h1>
         <p className="mt-2 text-muted-foreground">Masukkan kode order atau tempel link yang dikirim penjual.</p>
         <form onSubmit={e=>{e.preventDefault();void search();}} className="mt-7 flex flex-col gap-3 sm:flex-row">
