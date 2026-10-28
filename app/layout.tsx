@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import "./globals.css";
+import "./unified.css";
 
 export const metadata: Metadata = {
   title: "Miuu Store — little order studio",

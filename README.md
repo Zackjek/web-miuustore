@@ -1,56 +1,42 @@
-# Miuu Store 🐈
+# Miuu Store — little order studio
 
-Web untuk mengelola pesanan Miuu Store. Saya pakai untuk mencatat order aplikasi, memantau masa sewa dan garansi, serta melihat keuntungan dari penjualan.
+Aplikasi Next.js untuk katalog publik, pengelolaan pesanan, loyalty, dan renewal Canva pada satu domain. Proyek ini melanjutkan web order Miuu Store yang sudah ada.
 
-Situs: https://miuu-store.netlify.app/
+## Halaman
 
-## Yang bisa dilakukan
+- `/`: pricelist publik dengan kategori, pencarian, stok, dan paket berkelompok.
+- `/cek`: progres pesanan melalui kode order.
+- `/loyalty`: kartu member, stamp, hadiah, garansi, dan klaim.
+- `/admin/dashboard`: seluruh pengelolaan dengan Supabase Auth dan daftar admin.
+- `/admin/recovery`: pemulihan password.
 
-- Mencatat pesanan, status, data buyer, dan rincian pembayaran.
-- Menyimpan katalog produk dan data supplier.
-- Membuat nota serta link untuk buyer mengecek progres pesanan.
-- Memantau garansi dan mendapat pengingat saat masa sewa hampir habis.
-- Menghitung profit, refund, dan pengeluaran.
-- Mengunduh data order sebagai CSV atau backup sebagai JSON.
-- Menggunakan tema terang atau gelap.
+Data Products dipakai untuk pemesanan dan katalog. Pesanan yang sama digunakan untuk loyalty dan Canva. Nota, profit, supplier, buyer, kalender, template pesan, watermark, backup, serta notifikasi yang sudah ada dipertahankan.
 
-Link cek progres hanya menampilkan informasi yang diperlukan buyer. Harga modal dan catatan pribadi tidak ikut ditampilkan.
+## Jalankan lokal
 
-## Teknologi
-
-Proyek ini menggunakan Next.js, TypeScript, Tailwind CSS, dan Supabase. Situsnya di-deploy melalui Netlify dari repository GitHub ini.
-
-## Menjalankan di komputer sendiri
-
-Gunakan Node.js versi 22.13 atau lebih baru, lalu jalankan:
+Gunakan Node.js 22.13 atau lebih baru; pemeriksaan pengerjaan ini memakai Node.js 24.
 
 ```bash
-npm install
-```
-
-Buat file `.env.local` di folder utama proyek, sejajar dengan `package.json`. Isi dengan data dari proyek Supabase yang digunakan:
-
-```env
-NEXT_PUBLIC_SUPABASE_URL=https://alamat-proyek.supabase.co
-NEXT_PUBLIC_SUPABASE_ANON_KEY=publishable-key-atau-anon-key
-```
-
-Setelah itu jalankan:
-
-```bash
+npm ci
+cp .env.example .env.local
 npm run dev
 ```
 
-Buka `http://localhost:3000`. Variabel yang tersimpan di Netlify tidak otomatis tersedia saat menjalankan `npm run dev` di komputer sendiri, jadi `.env.local` memang diperlukan untuk mencoba login secara lokal.
+Isi URL Supabase dan publishable/anon key pada `.env.local`. Untuk instalasi database baru, jalankan `supabase/schema.sql`, lalu empat migrasi dalam urutan timestamp. Untuk database yang sudah dipakai, jalankan migrasi baru saja. Instruksi lengkap tersedia di [PANDUAN_MERGE.md](PANDUAN_MERGE.md).
 
-## Database dan deployment
+## Pemeriksaan
 
-Untuk **pemasangan baru**, jalankan `supabase/schema.sql` melalui SQL Editor di Supabase dan aktifkan login Email pada Supabase Authentication.
+```bash
+npm run typecheck
+npm test
+npm run build
+```
 
-Situs Miuu Store yang sudah tayang memakai database yang telah disiapkan. Jika hanya mengubah tampilan atau kode aplikasi, tidak perlu menjalankan SQL tersebut lagi.
+Test menggunakan database sementara PGlite, tanpa kredensial Supabase produksi. Workflow GitHub Actions tersedia pada `.github/workflows/quality.yml`. Skenario browser menggunakan adapter uji dalam `tests/preview` dan sesi fixture; adapter ini bukan entry point deployment.
 
-Netlify menyimpan `NEXT_PUBLIC_SUPABASE_URL` dan `NEXT_PUBLIC_SUPABASE_ANON_KEY` di pengaturan **Environment variables**. Setelah perubahan kode di-push ke cabang GitHub yang terhubung, Netlify akan membuat deploy baru untuk situs yang sama.
+## Pemasangan dan penerimaan
 
-## Catatan
+- [Panduan merge, database, Netlify, dan pemindahan order](PANDUAN_MERGE.md)
+- [Kriteria keberhasilan dan bukti pengujian](KRITERIA_SUKSES.md)
 
-Pengingat browser bekerja saat situs sedang dibuka. Tombol WhatsApp menyiapkan pesan pengingat untuk dikirim sendiri; aplikasi tidak mengirim pesan atau mengeluarkan akun buyer secara otomatis.
+Website produksi dan data lama belum diubah pada pengerjaan ini. Setelah merge, gunakan deployment Netlify yang terhubung ke repositori yang sama, dengan project Supabase yang sama. Data dari web loyalty lama memerlukan ekspor admin tersendiri.

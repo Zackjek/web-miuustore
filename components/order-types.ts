@@ -1,20 +1,24 @@
+import type { CatalogFields, Category, StorefrontSettings, LoyaltyMember, Voucher, StampLog, WarrantyClaim, CanvaTeam, CanvaSubscription, RenewalLog } from "@/lib/unified-types";
+import { wibToday } from "@/lib/date-tools";
 export type Order = {
   id:string; invoice_seq:number; tracking_code:string; buyer:string; buyer_wa:string;
   product_name:string; variant:string; duration:string; device:string; location:string;
   price:number; cost:number; quantity:number; supplier:string; supplier_admin:string;
   order_date:string; due_date:string; warranty_days:number; rental_end_at:string|null; logged_out_at:string|null; status:string; notes:string;
   public_note:string; refund_amount:number; created_at:string; updated_at:string;
+  member_id?:string|null; payment_status?:string; order_at?:string|null;
 };
-export type Product = {id:string;name:string;variant:string;duration:string;cost:number;price:number;supplier:string;sort_order:number;created_at:string};
+export type Product = CatalogFields & {id:string;name:string;variant:string;duration:string;cost:number;price:number;supplier:string;sort_order:number;created_at:string};
 export type Supplier = {id:string;name:string;admin:string;contact:string;created_at:string};
 export type Expense = {id:string;title:string;amount:number;date:string;notes:string;created_at:string};
 export type BuyerNote = {id:string;buyer:string;notes:string;updated_at:string};
 export type Settings = {shop_name:string;currency:string;default_warranty:number;receipt_style:string;receipt_color:string;buyer_template:string;account_template:string;seller_wa:string};
-export type Store = {orders:Order[];products:Product[];suppliers:Supplier[];expenses:Expense[];buyerNotes:BuyerNote[];settings:Settings|null};
-export type View = "dashboard"|"orders"|"products"|"calculator"|"warranty"|"calendar"|"logout"|"suppliers"|"buyers"|"profit"|"formats"|"promo"|"watermark"|"settings";
+export type Store = {orders:Order[];products:Product[];suppliers:Supplier[];expenses:Expense[];buyerNotes:BuyerNote[];settings:Settings|null; categories:Category[];storefront:StorefrontSettings|null;members:LoyaltyMember[];vouchers:Voucher[];stampLogs:StampLog[];claims:WarrantyClaim[];canvaTeams:CanvaTeam[];canvaSubscriptions:CanvaSubscription[];renewalLogs:RenewalLog[]};
+export const emptyStore:Store={orders:[],products:[],suppliers:[],expenses:[],buyerNotes:[],settings:null,categories:[],storefront:null,members:[],vouchers:[],stampLogs:[],claims:[],canvaTeams:[],canvaSubscriptions:[],renewalLogs:[]};
+export type View = "dashboard"|"orders"|"products"|"calculator"|"warranty"|"calendar"|"logout"|"suppliers"|"buyers"|"profit"|"formats"|"promo"|"watermark"|"settings"|"storefront"|"loyalty"|"canva";
 export const moneyFmt = (n:number,currency="Rp") => currency+" "+new Intl.NumberFormat("id-ID").format(n||0);
 export const dateFmt = (s:string) => s ? new Intl.DateTimeFormat("id-ID",{day:"numeric",month:"short",year:"numeric"}).format(new Date(s)) : "—";
-export const isoToday = () => new Date().toISOString().slice(0,10);
+export const isoToday = wibToday;
 export const invoice = (n:number) => "INV-"+String(n).padStart(5,"0");
 export const daysLeft = (s:string) => s ? Math.ceil((new Date(s+"T12:00:00").getTime()-Date.now())/86400000) : null;
 export const addDays = (s:string,days:number) => {const d=new Date(s+"T12:00:00");d.setDate(d.getDate()+Number(days||0));return d.toISOString().slice(0,10);};

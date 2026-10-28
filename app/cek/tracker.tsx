@@ -1,6 +1,6 @@
 "use client";
 import { useEffect, useState } from "react";
-import Link from "next/link";
+import { PublicShell } from "@/components/public-shell";
 import { ArrowLeft, Heart, Moon, Sun } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -20,10 +20,7 @@ export default function Tracker() {
   const [result,setResult]=useState<Result|null>(null);
   const [error,setError]=useState("");
   const [loading,setLoading]=useState(false);
-  const [dark,setDark]=useState(false);
   useEffect(()=>{ const p=new URLSearchParams(location.search).get("kode"); if(p) {setCode(p); void search(p);} },[]);
-  useEffect(()=>{const saved=localStorage.getItem("ruang-order-theme")==="dark";setDark(saved);document.documentElement.classList.toggle("dark",saved);},[]);
-  const toggleTheme=()=>{const next=!dark;setDark(next);document.documentElement.classList.toggle("dark",next);localStorage.setItem("ruang-order-theme",next?"dark":"light");};
   async function search(value=code) {
     let parsed=value.trim();
     try {if(parsed.startsWith("http")) parsed=new URL(parsed).searchParams.get("kode")||parsed;} catch {}
@@ -37,12 +34,7 @@ export default function Tracker() {
     } catch(e) {setError(e instanceof Error?e.message:"Gagal memeriksa order.");}
     finally {setLoading(false);}
   }
-  return <main className="soft-bg min-h-screen px-4 py-9 sm:py-14">
-    <div className="mx-auto max-w-2xl">
-      <div className="mb-8 flex items-center justify-between">
-        <Link href="/" className="inline-flex items-center gap-2 text-sm font-semibold text-muted-foreground hover:text-foreground"><ArrowLeft size={18}/> <MiuuCat className="size-7"/> Miuu Store</Link>
-        <Button variant="ghost" size="icon" aria-label="Ganti tema" onClick={toggleTheme}>{dark?<Sun size={19}/>:<Moon size={19}/>}</Button>
-      </div>
+  return <PublicShell active="tracking"><div className="mx-auto max-w-2xl px-4 py-10">
       <div className="glass rounded-[28px] p-6 sm:p-9">
         <div className="mb-6 flex size-12 items-center justify-center rounded-2xl bg-secondary text-primary"><MiuuCat className="size-10"/></div>
         <h1 className="serif text-3xl sm:text-4xl">Cek progres pesanan</h1>
@@ -69,5 +61,5 @@ export default function Tracker() {
       </div>}
       <p className="mt-8 flex items-center justify-center gap-1 text-center text-sm text-muted-foreground"><Heart size={13}/> Informasi status berasal dari penjual pesananmu.</p>
     </div>
-  </main>;
+  </PublicShell>;
 }

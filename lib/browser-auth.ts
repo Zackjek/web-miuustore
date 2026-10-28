@@ -42,6 +42,9 @@ async function refresh(){
   const current=saved();if(!current)return null;
   try{const result=await auth("token?grant_type=refresh_token","POST",{refresh_token:current.refresh_token});return setFromAuth(result);}catch{store(null);return null;}
 }
+export async function sendPasswordReset(email:string){await auth("recover?redirect_to="+encodeURIComponent(location.origin+"/admin/recovery"),"POST",{email});}
+export async function recoveryUser(token:string){return auth("user","GET",undefined,token);}
+export async function setRecoveryPassword(token:string,password:string){if(password.length<8)throw new Error("Gunakan minimal 8 karakter untuk password baru.");await auth("user","PUT",{password},token);}
 export async function accessToken(force=false){
   const session=saved();if(!session)return null;
   if(!force&&session.expires_at>Date.now()+60_000)return session.access_token;

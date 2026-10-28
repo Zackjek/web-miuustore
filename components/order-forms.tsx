@@ -6,12 +6,15 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select,SelectContent,SelectItem,SelectTrigger,SelectValue } from "@/components/ui/select";
 import type { Order,Product,Supplier,Settings } from "./order-types";
 import { isoToday, defaultSettings, isoToWibInput, wibInputToIso } from "./order-types";
+import type { LoyaltyMember } from "@/lib/unified-types";
+import { addCalendarMonths } from "@/lib/date-tools";
+import { addDays } from "./order-types";
 
 const label = "mb-1.5 block text-sm font-semibold text-foreground/80";
 const field = "h-10 rounded-xl bg-card px-3 text-base";
 const statuses = ["Baru","Diproses","Menunggu","Selesai","Dibatalkan"];
 
-export function OrderForm({initial,products,suppliers,settings,onSubmit,pending}:{initial?:Order|null;products:Product[];suppliers:Supplier[];settings:Settings|null;onSubmit:(v:Record<string,unknown>)=>Promise<void>;pending:boolean}) {
+export function OrderForm({initial,products,suppliers,settings,members=[],onSubmit,pending}:{initial?:Order|null;products:Product[];suppliers:Supplier[];settings:Settings|null;members?:LoyaltyMember[];onSubmit:(v:Record<string,unknown>)=>Promise<void>;pending:boolean}) {
   const [v,setV]=useState<Record<string,string|number>>({
     buyer:initial?.buyer||"",buyer_wa:initial?.buyer_wa||"",product_name:initial?.product_name||"",
     variant:initial?.variant||"",duration:initial?.duration||"",device:initial?.device||"",
@@ -22,10 +25,12 @@ export function OrderForm({initial,products,suppliers,settings,onSubmit,pending}
     warranty_days:initial?.warranty_days??settings?.default_warranty??defaultSettings.default_warranty,
     status:initial?.status||"Diproses",notes:initial?.notes||"",public_note:initial?.public_note||"",
     refund_amount:initial?.refund_amount||0,
+    member_id:initial?.member_id||"",payment_status:initial?.payment_status||"Belum Lunas",order_time:isoToWibInput(initial?.order_at).slice(11),
   });
-  const [productId,setProductId]=useState("custom");
+  const [productId,setProductId]=useState("custom"),[variantPick,setVariantPick]=useState("");
   const set=(key:string,value:string|number)=>setV(current=>({...current,[key]:value}));
-  const submit=(e:FormEvent)=>{e.preventDefault();void onSubmit({...v,rental_end_at:wibInputToIso(String(v.rental_end_at))});};
+  const submit=(e:FormEvent)=>{e.preventDefault();void onSubmit({...v,rental_end_at:wibInputToIso(String(v.rental_end_at)),order_at:v.order_time?wibInputToIso(`${v.order_date}T${v.order_time}`):null}).catch(()=>{});};
+  const quickRental=(months:number,days=0)=>{if(!v.order_date)return;const date=months?addCalendarMonths(String(v.order_date),months):addDays(String(v.order_date),days);set("rental_end_at",date+"T"+(v.order_time||"12:00"));};
   const profit=(Number(v.price)-Number(v.cost))*Number(v.quantity)-Number(v.refund_amount);
   return <form onSubmit={submit} className="max-h-[min(72vh,800px)] space-y-5 overflow-y-auto pr-1">
     <div>
@@ -34,6 +39,7 @@ export function OrderForm({initial,products,suppliers,settings,onSubmit,pending}
       <div><label className={label} htmlFor="order-buyer">Buyer *</label><Input id="order-buyer" required className={field} placeholder="@nama buyer" value={String(v.buyer)} onChange={e=>set("buyer",e.target.value)}/></div>
       <div><label className={label} htmlFor="order-wa">No. WhatsApp buyer</label><Input id="order-wa" className={field} placeholder="08..." value={String(v.buyer_wa)} onChange={e=>set("buyer_wa",e.target.value)}/></div>
     </div>
+    <label className="hub-field mt-4">Member loyalty (opsional)<select value={String(v.member_id)} onChange={e=>set("member_id",e.target.value)}><option value="">Tanpa member</option>{members.map(m=><option key={m.id} value={m.id}>{m.name} · {m.member_id}</option>)}</select></label><p className="hub-muted">Program 8 stamp: transaksi Lunas minimal Rp15.000 mendapat satu stamp; member dibuat otomatis dari nomor WA. Program 10 stamp mengikuti status Selesai.</p>
     <div className="miuu-note-panel mt-4 rounded-2xl p-4">
       <p className="mb-3 text-sm font-bold text-primary">✎ &nbsp;Catatan order</p>
       <div className="grid gap-4 sm:grid-cols-2">
@@ -44,7 +50,8 @@ export function OrderForm({initial,products,suppliers,settings,onSubmit,pending}
     </div>
     <div className="border-t border-border pt-5">
       <p className="mb-3 text-xs font-bold uppercase tracking-[.12em] text-primary">Detail pesanan</p>
-    <div><span className={label}>Pilih dari katalog (opsional)</span><Select value={productId} onValueChange={id=>{setProductId(id);const p=products.find(x=>x.id===id);if(p)setV(current=>({...current,product_name:p.name,variant:p.variant,duration:p.duration,price:p.price,cost:p.cost,supplier:p.supplier}));}}><SelectTrigger className="h-10 w-full rounded-xl bg-card text-sm"><SelectValue/></SelectTrigger><SelectContent><SelectItem value="custom">Isi produk sendiri</SelectItem>{products.map(p=><SelectItem key={p.id} value={p.id}>{[p.name,p.variant,p.duration].filter(Boolean).join(" · ")} — Rp {p.price.toLocaleString("id-ID")}</SelectItem>)}</SelectContent></Select></div>
+    <div><span className={label}>Pilih dari katalog (opsional)</span><Select value={productId} onValueChange={id=>{setProductId(id);setVariantPick("");const p=products.find(x=>x.id===id);if(p)setV(current=>({...current,product_name:p.name,variant:p.variant,duration:p.duration,price:p.price,cost:p.cost,supplier:p.supplier}));}}><SelectTrigger className="h-10 w-full rounded-xl bg-card text-sm"><SelectValue/></SelectTrigger><SelectContent><SelectItem value="custom">Isi produk sendiri</SelectItem>{products.map(p=><SelectItem key={p.id} value={p.id}>{[p.name,p.variant,p.duration].filter(Boolean).join(" · ")} — Rp {p.price.toLocaleString("id-ID")}</SelectItem>)}</SelectContent></Select></div>
+    {!!products.find(p=>p.id===productId)?.variants?.length&&<label className="hub-field mt-4">Paket & durasi katalog<select value={variantPick} onChange={e=>{setVariantPick(e.target.value);const item=products.find(p=>p.id===productId)?.variants?.[Number(e.target.value)];if(item){const parts=item.label.split("|").map(x=>x.trim());setV(old=>({...old,variant:parts.length>1?parts[0]:"",duration:parts.length>1?parts[1]:parts[0],price:item.price}));}}}><option value="">Pilih varian harga</option>{products.find(p=>p.id===productId)?.variants?.map((v,i)=><option key={v.label} value={i}>{v.label} — Rp {v.price.toLocaleString("id-ID")}</option>)}</select><span className="hub-muted block mt-2">Periksa modal sesuai varian yang dipilih jika tiap paket memakai modal berbeda.</span></label>}
     <div className="mt-4 grid gap-4 sm:grid-cols-2">
       <div><label className={label} htmlFor="order-product">Aplikasi / produk *</label><Input id="order-product" required className={field} placeholder="Netflix" value={String(v.product_name)} onChange={e=>set("product_name",e.target.value)}/></div>
       <div><label className={label} htmlFor="order-variant">Tipe / paket</label><Input id="order-variant" className={field} placeholder="Sharing 1P1U" value={String(v.variant)} onChange={e=>set("variant",e.target.value)}/></div>
@@ -55,8 +62,10 @@ export function OrderForm({initial,products,suppliers,settings,onSubmit,pending}
       <div><label className={label} htmlFor="order-price">Harga jual (Rp)</label><Input id="order-price" type="number" min="0" className={field} value={Number(v.price)} onChange={e=>set("price",e.target.value)}/></div>
       <div><label className={label} htmlFor="order-cost">Modal / FH (Rp)</label><Input id="order-cost" type="number" min="0" className={field} value={Number(v.cost)} onChange={e=>set("cost",e.target.value)}/></div>
       <div><label className={label} htmlFor="order-date">Tanggal order</label><Input id="order-date" type="date" className={field} value={String(v.order_date)} onChange={e=>set("order_date",e.target.value)}/></div>
+      <label className="hub-field">Jam order (WIB, opsional)<input type="time" value={String(v.order_time)} onChange={e=>set("order_time",e.target.value)}/></label>
+      <label className="hub-field">Status pembayaran<select value={String(v.payment_status)} onChange={e=>set("payment_status",e.target.value)}>{["Belum Lunas","Lunas","Dibatalkan","Refund"].map(s=><option key={s}>{s}</option>)}</select></label>
       <div><label className={label} htmlFor="order-due">Tanggal jatuh tempo</label><Input id="order-due" type="date" className={field} value={String(v.due_date)} onChange={e=>set("due_date",e.target.value)}/></div>
-      <div className="sm:col-span-2"><label className={label} htmlFor="rental-end">Akhir masa sewa aplikasi (WIB)</label><Input id="rental-end" type="datetime-local" className={field} value={String(v.rental_end_at)} onChange={e=>set("rental_end_at",e.target.value)}/><p className="mt-1 text-sm text-muted-foreground">Isi untuk mengaktifkan pengingat logout. Kosongkan bila order ini bukan sewa aplikasi. Waktu ini terpisah dari garansi.</p></div>
+      <div className="sm:col-span-2"><label className={label} htmlFor="rental-end">Akhir masa sewa aplikasi (WIB)</label><Input id="rental-end" type="datetime-local" className={field} value={String(v.rental_end_at)} onChange={e=>set("rental_end_at",e.target.value)}/><div className="hub-actions"><button type="button" onClick={()=>quickRental(0,7)}>+7 hari</button><button type="button" onClick={()=>quickRental(1)}>+1 bulan</button><button type="button" onClick={()=>quickRental(3)}>+3 bulan</button><button type="button" onClick={()=>quickRental(12)}>+1 tahun</button></div><p className="mt-1 text-sm text-muted-foreground">Isi untuk mengaktifkan pengingat logout. Kosongkan bila order ini bukan sewa aplikasi. Waktu ini terpisah dari garansi.</p></div>
       <div><label className={label} htmlFor="order-warranty">Garansi (hari)</label><Input id="order-warranty" type="number" min="0" className={field} value={Number(v.warranty_days)} onChange={e=>set("warranty_days",e.target.value)}/></div>
       <div><span className={label}>Status order</span><Select value={String(v.status)} onValueChange={x=>set("status",x)}><SelectTrigger className="h-10 w-full rounded-xl bg-card"><SelectValue/></SelectTrigger><SelectContent>{statuses.map(s=><SelectItem value={s} key={s}>{s}</SelectItem>)}</SelectContent></Select></div>
       <div><label className={label} htmlFor="order-supplier">Supplier / FH</label><Input id="order-supplier" list="supplier-list" className={field} placeholder="Nama supplier" value={String(v.supplier)} onChange={e=>set("supplier",e.target.value)}/><datalist id="supplier-list">{suppliers.map(s=><option key={s.id} value={s.name}/>)}</datalist></div>
@@ -65,23 +74,8 @@ export function OrderForm({initial,products,suppliers,settings,onSubmit,pending}
       <div className="flex items-end"><div className="w-full rounded-xl bg-secondary p-3 text-sm">Perkiraan profit <strong className="block text-lg text-primary">Rp {profit.toLocaleString("id-ID")}</strong></div></div>
     </div>
     </div>
-    <div className="sticky bottom-0 flex justify-end gap-3 bg-card/95 py-3"><Button type="submit" disabled={pending} className="h-11 rounded-xl px-7">{pending?"Menyimpan...":initial?"Simpan perubahan":"Simpan order ♡"}</Button></div>
+    <div className="sticky bottom-0 flex justify-end gap-3 bg-card/95 py-3"><Button type="submit" disabled={pending} className="h-11 rounded-xl px-7">{pending?"Menyimpan...":initial?.id?"Simpan perubahan":"Simpan order ♡"}</Button></div>
   </form>;
 }
 
-export function ProductForm({initial,onSubmit,pending}:{initial?:Product|null;onSubmit:(v:Record<string,unknown>)=>Promise<void>;pending:boolean}) {
-  const [v,setV]=useState({name:initial?.name||"",variant:initial?.variant||"",duration:initial?.duration||"",cost:initial?.cost||0,price:initial?.price||0,supplier:initial?.supplier||""});
-  const set=(k:string,value:string|number)=>setV(c=>({...c,[k]:value}));
-  return <form onSubmit={e=>{e.preventDefault();void onSubmit(v);}} className="space-y-4">
-    <div><label className={label} htmlFor="p-name">Aplikasi / produk *</label><Input id="p-name" required className={field} placeholder="Canva" value={v.name} onChange={e=>set("name",e.target.value)}/></div>
-    <div className="grid gap-4 sm:grid-cols-2">
-      <div><label className={label} htmlFor="p-variant">Tipe</label><Input id="p-variant" className={field} placeholder="Private / Sharing" value={v.variant} onChange={e=>set("variant",e.target.value)}/></div>
-      <div><label className={label} htmlFor="p-duration">Durasi</label><Input id="p-duration" className={field} placeholder="1 Bulan" value={v.duration} onChange={e=>set("duration",e.target.value)}/></div>
-      <div><label className={label} htmlFor="p-cost">Harga FH / modal</label><Input id="p-cost" type="number" min="0" className={field} value={v.cost} onChange={e=>set("cost",Number(e.target.value))}/></div>
-      <div><label className={label} htmlFor="p-price">Harga jual</label><Input id="p-price" type="number" min="0" className={field} value={v.price} onChange={e=>set("price",Number(e.target.value))}/></div>
-    </div>
-    <div><label className={label} htmlFor="p-supplier">FH / supplier (opsional)</label><Input id="p-supplier" className={field} value={v.supplier} onChange={e=>set("supplier",e.target.value)}/></div>
-    <p className="rounded-xl bg-secondary p-3 text-sm">Profit per item: <strong className="text-primary">Rp {(Number(v.price)-Number(v.cost)).toLocaleString("id-ID")}</strong></p>
-    <div className="flex justify-end"><Button disabled={pending} className="rounded-xl px-6">{pending?"Menyimpan...":initial?"Simpan perubahan":"Tambah produk"}</Button></div>
-  </form>;
-}
+export {default as ProductForm} from "./hub/product-editor";

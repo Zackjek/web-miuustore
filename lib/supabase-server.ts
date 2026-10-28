@@ -1,8 +1,9 @@
 // Akses Supabase REST dengan token seller: seluruh query tetap melewati RLS.
+class HttpError extends Error {constructor(message:string,public status:number){super(message);}}
 function config() {
   const url=process.env.NEXT_PUBLIC_SUPABASE_URL?.replace(/\/$/,"");
   const key=process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
-  if(!url||!key)throw new Error("Atur NEXT_PUBLIC_SUPABASE_URL dan NEXT_PUBLIC_SUPABASE_ANON_KEY.");
+  if(!url||!key)throw new HttpError("Atur NEXT_PUBLIC_SUPABASE_URL dan NEXT_PUBLIC_SUPABASE_ANON_KEY.",503);
   return {url,key};
 }
 export async function verifiedOwner(request:Request) {
@@ -12,7 +13,10 @@ export async function verifiedOwner(request:Request) {
   const response=await fetch(url+"/auth/v1/user",{headers:{apikey:key,Authorization:"Bearer "+token},cache:"no-store"});
   if(!response.ok)return null;
   const user=await response.json() as {id?:string};
-  return user.id?{id:user.id,token}:null;
+  if(!user.id)return null;
+  const admins=await rest<{owner_id:string}[]>("store_admins"+filter({select:"owner_id",owner_id:"eq."+user.id}),token);
+  if(!admins.length)throw new HttpError("Akun ini belum terdaftar sebagai admin toko.",403);
+  return {id:user.id,token};
 }
 export async function rest<T>(path:string,token:string|null=null,method="GET",body?:unknown,prefer?:string):Promise<T> {
   const {url,key}=config();
@@ -28,6 +32,17 @@ export async function rest<T>(path:string,token:string|null=null,method="GET",bo
   const raw=await response.text();
   return (raw?JSON.parse(raw):null) as T;
 }
+export async function restAll<T>(path:string,token:string):Promise<T[]> {
+  const {url,key}=config();const rows:T[]=[];let offset=0;
+  for(;;){
+    const response=await fetch(url+"/rest/v1/"+path+(path.includes("?")?"&":"?")+"limit=1000&offset="+offset,{headers:{apikey:key,Authorization:"Bearer "+token,Prefer:"count=exact"},cache:"no-store"});
+    if(!response.ok){const error=await response.json().catch(()=>({})) as {message?:string};throw new HttpError(error.message||"Data belum dapat dimuat.",response.status);}
+    const page=await response.json() as T[];if(!Array.isArray(page))throw new Error("Format data tidak sesuai.");
+    rows.push(...page);offset+=page.length;
+    const count=response.headers.get("content-range")?.split("/")[1];const total=count&&count!=="*"?Number(count):null;
+    if(!page.length||(total!==null&&Number.isFinite(total)&&offset>=total)||(total===null&&page.length<1000))return rows;
+  }
+}
 export const filter=(values:Record<string,string>)=>"?"+new URLSearchParams(values).toString();
 export const str=(value:unknown,max=300)=>String(value??"").trim().slice(0,max);
 export const money=(value:unknown)=>{const n=Number(value);return Number.isFinite(n)&&n>=0?Math.min(Math.round(n),1000000000000):0;};
@@ -40,4 +55,4 @@ export const statuses=["Baru","Diproses","Menunggu","Selesai","Dibatalkan"];
 export const status=(value:unknown)=>statuses.includes(str(value,30))?str(value,30):"Diproses";
 export const bad=(message:string)=>Response.json({error:message},{status:400});
 export const unauthorized=()=>Response.json({error:"Sesi login habis. Masuk kembali."},{status:401});
-export function failed(error:unknown){console.error("Ruang Order database:",error);return Response.json({error:error instanceof Error?error.message:"Data gagal diproses."},{status:500});}
+export function failed(error:unknown){console.error("Ruang Order database:",error);return Response.json({error:error instanceof Error?error.message:"Data gagal diproses."},{status:error instanceof HttpError?error.status:500});}

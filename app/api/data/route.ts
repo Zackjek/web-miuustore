@@ -1,5 +1,8 @@
-import {bad,date,failed,filter,money,optionalDate,positive,rest,status,str,timestamp,unauthorized,verifiedOwner} from "@/lib/supabase-server";
+import {bad,date,failed,filter,money,optionalDate,positive,rest,restAll,status,str,timestamp,unauthorized,verifiedOwner} from "@/lib/supabase-server";
 import type {Order,Product,Supplier,Expense,BuyerNote,Settings} from "@/components/order-types";
+import { catalogValues, loadHub, uuid } from "@/lib/hub-server";
+import {addCalendarMonths} from "@/lib/date-tools";
+import {isoToWibInput,wibInputToIso} from "@/components/order-types";
 export const dynamic="force-dynamic";
 type Payload=Record<string,unknown>;
 const q=(table:string,values:Record<string,string>)=>table+filter(values);
@@ -9,21 +12,23 @@ function trackingCode(){const bytes=crypto.getRandomValues(new Uint8Array(10));r
 function orderValues(x:Payload){return {
   buyer:str(x.buyer,120),buyer_wa:str(x.buyer_wa,40),product_name:str(x.product_name,120),variant:str(x.variant,120),duration:str(x.duration,80),device:str(x.device,60),location:str(x.location,90),
   price:money(x.price),cost:money(x.cost),quantity:positive(x.quantity),supplier:str(x.supplier,120),supplier_admin:str(x.supplier_admin,120),order_date:date(x.order_date),due_date:optionalDate(x.due_date),
-  warranty_days:money(x.warranty_days),rental_end_at:rental(x.rental_end_at),status:status(x.status),notes:str(x.notes,3000),public_note:str(x.public_note,1000),refund_amount:money(x.refund_amount)};}
+  warranty_days:money(x.warranty_days),rental_end_at:rental(x.rental_end_at),status:status(x.status),notes:str(x.notes,3000),public_note:str(x.public_note,1000),refund_amount:money(x.refund_amount),
+  member_id:uuid(x.member_id)?x.member_id:null,payment_status:["Belum Lunas","Lunas","Dibatalkan","Refund"].includes(str(x.payment_status))?str(x.payment_status):"Belum Lunas",order_at:timestamp(x.order_at)};}
 const idOK=(id:string)=>/^[0-9a-f]{8}-[0-9a-f-]{27,}$/i.test(id);
 
 export async function GET(request:Request){
   try{
     const auth=await verifiedOwner(request);if(!auth)return unauthorized();const id="eq."+auth.id,t=auth.token;
     const [orders,products,suppliers,expenses,buyerNotes,settings]=await Promise.all([
-      rest<Order[]>(q("orders",{select:"*",owner_id:id,order:"created_at.desc"}),t),
-      rest<Product[]>(q("products",{select:"*",owner_id:id,order:"sort_order.asc,name.asc,created_at.asc"}),t),
-      rest<Supplier[]>(q("suppliers",{select:"*",owner_id:id,order:"name.asc"}),t),
-      rest<Expense[]>(q("expenses",{select:"*",owner_id:id,order:"date.desc,created_at.desc"}),t),
-      rest<BuyerNote[]>(q("buyer_notes",{select:"*",owner_id:id,order:"buyer.asc"}),t),
-      rest<Settings[]>(q("shop_settings",{select:"*",owner_id:id}),t),
+      restAll<Order>(q("orders",{select:"*",owner_id:id,order:"created_at.desc"}),t),
+      restAll<Product>(q("products",{select:"*",owner_id:id,order:"sort_order.asc,name.asc,created_at.asc"}),t),
+      restAll<Supplier>(q("suppliers",{select:"*",owner_id:id,order:"name.asc"}),t),
+      restAll<Expense>(q("expenses",{select:"*",owner_id:id,order:"date.desc,created_at.desc"}),t),
+      restAll<BuyerNote>(q("buyer_notes",{select:"*",owner_id:id,order:"buyer.asc"}),t),
+      restAll<Settings>(q("shop_settings",{select:"*",owner_id:id}),t),
     ]);
-    return Response.json({orders,products,suppliers,expenses,buyerNotes,settings:settings[0]||null},{headers:{"Cache-Control":"no-store"}});
+    const hub=await loadHub(auth.id,t);
+    return Response.json({orders,products,suppliers,expenses,buyerNotes,settings:settings[0]||null,...hub},{headers:{"Cache-Control":"no-store"}});
   }catch(error){return failed(error);}
 }
 export async function POST(request:Request){
@@ -38,7 +43,7 @@ export async function POST(request:Request){
     }
     if(kind==="product"){
       const name=str(data.name,120);if(!name)return bad("Nama produk wajib diisi.");
-      await rest("products",t,"POST",{id,owner_id,name,variant:str(data.variant,120),duration:str(data.duration,80),cost:money(data.cost),price:money(data.price),supplier:str(data.supplier,120),sort_order:positive(data.sort_order,1),created_at:now});
+      await rest("products",t,"POST",{id,owner_id,name,variant:str(data.variant,120),duration:str(data.duration,80),cost:money(data.cost),price:money(data.price),supplier:str(data.supplier,120),sort_order:positive(data.sort_order,1),created_at:now,...catalogValues(data)});
     }else if(kind==="supplier"){
       const name=str(data.name,120);if(!name)return bad("Nama supplier wajib diisi.");
       await rest("suppliers",t,"POST",{id,owner_id,name,admin:str(data.admin,120),contact:str(data.contact,80),created_at:now});
@@ -58,7 +63,16 @@ export async function PATCH(request:Request){
     const kind=str(data.kind,30),id=str(data.id,80),t=auth.token,owner_id=auth.id,now=new Date().toISOString();
     if(kind!=="settings"&&!idOK(id))return bad("ID tidak valid.");
     const path=(table:string)=>q(table,{id:"eq."+id,owner_id:"eq."+owner_id});
-    if(kind==="logout"){
+    if(kind==="extend"){
+      const rows=await rest<Pick<Order,"rental_end_at">[]>(q("orders",{select:"rental_end_at",id:"eq."+id,owner_id:"eq."+owner_id}),t);
+      const old=rows[0]?.rental_end_at;
+      if(!old||old!==data.expected_rental_end)return bad("Waktu sewa sudah berubah. Muat ulang sebelum memperpanjang.");
+      const canva=await rest<{id:string}[]>(q("canva_subscriptions",{select:"id",order_id:"eq."+id,owner_id:"eq."+owner_id}),t);
+      if(canva.length)return bad("Perpanjang order Canva melalui edit durasi pada menu Canva.");
+      const wib=isoToWibInput(old),end=wibInputToIso(addCalendarMonths(wib.slice(0,10),1)+wib.slice(10));
+      const updated=await rest<Order[]>(q("orders",{id:"eq."+id,owner_id:"eq."+owner_id,rental_end_at:"eq."+old}),t,"PATCH",{rental_end_at:end,logged_out_at:null,updated_at:now},"return=representation");
+      if(!updated.length)return bad("Order baru saja diubah. Muat ulang dan coba lagi.");
+    }else if(kind==="logout"){
       const rows=await rest<Order[]>(path("orders"),t,"PATCH",{logged_out_at:data.completed?now:null,updated_at:now},"return=representation");
       if(!rows.length)return Response.json({error:"Order tidak ditemukan."},{status:404});
     }else if(kind==="order"){
@@ -71,7 +85,7 @@ export async function PATCH(request:Request){
       await rest(path("orders"),t,"PATCH",{...values,...(oldEnd!==newEnd?{logged_out_at:null}:{}),updated_at:now});
     }else if(kind==="product"){
       if(!str(data.name,120))return bad("Nama produk wajib diisi.");
-      await rest(path("products"),t,"PATCH",{name:str(data.name,120),variant:str(data.variant,120),duration:str(data.duration,80),cost:money(data.cost),price:money(data.price),supplier:str(data.supplier,120)});
+      await rest(path("products"),t,"PATCH",{name:str(data.name,120),variant:str(data.variant,120),duration:str(data.duration,80),cost:money(data.cost),price:money(data.price),supplier:str(data.supplier,120),...catalogValues(data)});
     }else if(kind==="supplier"){
       if(!str(data.name,120))return bad("Nama supplier wajib diisi.");
       await rest(path("suppliers"),t,"PATCH",{name:str(data.name,120),admin:str(data.admin,120),contact:str(data.contact,80)});
