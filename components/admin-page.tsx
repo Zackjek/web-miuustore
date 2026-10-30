@@ -67,7 +67,7 @@ export default function AdminPage() {
     return (
       <Workspace
         displayName={
-          user.user_metadata?.full_name || user.email.split("@")[0] || "Seller"
+          user.user_metadata?.full_name || user.email.split("@")[0] || "Admin Miuu"
         }
         onSignOut={() => void signOut().finally(() => setUser(null))}
       />
@@ -147,7 +147,7 @@ export default function AdminPage() {
           {reset ? "Kembali ke halaman masuk" : "Lupa password?"}
         </button>
         <p className="mt-4 text-center text-sm leading-relaxed text-muted-foreground">
-          Satu ruang untuk order, katalog, member, dan renewal Canva.
+          Khusus pengelola Miuu Store. Kelola order, katalog, member, dan renewal Canva di sini.
         </p>
       </div>
     </main>

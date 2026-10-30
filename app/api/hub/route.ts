@@ -9,6 +9,7 @@ import {
   verifiedOwner,
 } from "@/lib/supabase-server";
 import { requestBody, uuid, webUrl } from "@/lib/hub-server";
+import { assertMiuuIdentity, MIUU_NAME, MIUU_SLUG } from "@/lib/store-identity";
 export const dynamic = "force-dynamic";
 
 export async function GET(request: Request) {
@@ -49,25 +50,27 @@ async function mutate(request: Request) {
         id ? "PATCH" : "POST",
         { ...values, ...(!id ? { owner_id: owner.id } : {}) },
       );
+    } else if (kind === "publish_catalog") {
+      await rest(
+        "products" + filter({ owner_id: "eq." + owner.id }),
+        token, "PATCH", { is_published: true },
+      );
     } else if (kind === "storefront") {
-      const slug = str(data.slug, 40).toLowerCase();
-      if (!/^[a-z0-9][a-z0-9-]{1,39}$/.test(slug))
-        return bad(
-          "Alamat toko harus 2–40 huruf kecil, angka, atau tanda hubung.",
-        );
+      try { assertMiuuIdentity(data); }
+      catch (error) { return bad((error as Error).message); }
       await rest(
         "storefront_settings?on_conflict=owner_id",
         token,
         "POST",
         {
           owner_id: owner.id,
-          slug,
-          shop_name: str(data.shop_name, 100) || "Miuu Store",
+          slug: MIUU_SLUG,
+          shop_name: MIUU_NAME,
           tagline: str(data.tagline, 200),
           header_text: str(data.header_text, 1000),
           footer_text: str(data.footer_text, 1000),
           logo_url: webUrl(data.logo_url),
-          is_public: data.is_public === true,
+          is_public: true,
           voucher_valid_days: Math.min(money(data.voucher_valid_days), 3650),
           loyalty_program:
             data.loyalty_program === "classic10" ? "classic10" : "miuu8",
@@ -112,7 +115,9 @@ async function mutate(request: Request) {
       await rpc("adjust_loyalty_stamp", {
         p_member: data.member_id,
         p_delta: Number(data.delta),
-        p_reason: str(data.reason, 300),
+        p_reason: str(data.reason, 300).length >= 3
+          ? str(data.reason, 300)
+          : (Number(data.delta) > 0 ? "Penambahan stamp oleh admin Miuu" : "Pengurangan stamp oleh admin Miuu") + (str(data.reason) ? ": " + str(data.reason) : ""),
       });
     } else if (kind === "voucher") {
       if (!id) return bad("Voucher tidak valid.");

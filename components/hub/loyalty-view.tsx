@@ -4,9 +4,10 @@ import type { Store, Order } from "../order-types";
 import { invoice, dateFmt, moneyFmt } from "../order-types";
 import { whatsappNumber } from "@/lib/date-tools";
 import { authFetch } from "@/lib/browser-auth";
-import { rewardState, rewardStateText, memberCycle } from "@/lib/loyalty";
+import { rewardState, rewardStateText } from "@/lib/loyalty";
 import type { LoyaltyMember } from "@/lib/unified-types";
 import { Field, useHub } from "./common";
+import StampCard from "../stamp-card";
 import { Button } from "../ui/button";
 import {
   Dialog,
@@ -33,10 +34,11 @@ export default function LoyaltyView({
 }) {
   const hub = useHub(reload),
     [query, setQuery] = useState(""),
-    [selected, setSelected] = useState("");
+    [selected, setSelected] = useState(data.members[0]?.id || "");
   const [editor, setEditor] = useState<LoyaltyMember | "new" | null>(null),
     [credentials, setCredentials] = useState("");
   const [reason, setReason] = useState("");
+  const [stampNotice, setStampNotice] = useState("");
   const member = data.members.find((m) => m.id === selected),
     members = data.members.filter((m) =>
       (m.name + " " + m.member_id).toLowerCase().includes(query.toLowerCase()),
@@ -63,11 +65,12 @@ export default function LoyaltyView({
     }
   }
   async function adjust(delta: number) {
-    if (
-      member &&
-      (await hub.run({ kind: "stamp", member_id: member.id, delta, reason }))
-    )
+    if (!member || hub.busy) return;
+    const ok = await hub.run({ kind: "stamp", member_id: member.id, delta, reason }, "POST", delta > 0 ? "Stamp ditambahkan" : "Stamp dikurangi");
+    if (ok) {
       setReason("");
+      setStampNotice(delta > 0 ? `Satu stamp ditambahkan untuk ${member.name}.` : `Satu stamp dikurangi untuk ${member.name}.`);
+    }
   }
   return (
     <div className="space-y-5">
@@ -123,7 +126,9 @@ export default function LoyaltyView({
                 "hub-list-row flex w-full items-center justify-between gap-3 text-left " +
                 (selected === m.id ? "text-primary" : "")
               }
-              onClick={() => setSelected(m.id)}
+              disabled={hub.busy}
+              aria-pressed={selected === m.id}
+              onClick={() => { setSelected(m.id); setReason(""); setStampNotice(""); }}
             >
               <span>
                 <strong className="block text-sm">{m.name}</strong>
@@ -155,48 +160,39 @@ export default function LoyaltyView({
                 Edit member / kode
               </Button>
             </div>
-            <div className="my-5 rounded-xl bg-secondary p-4">
-              <strong className="serif text-3xl text-primary">
-                {member.stamps}/{member.program === "classic10" ? 10 : 8}
-              </strong>
-              <p className="hub-muted mt-1">
-                {member.program === "classic10"
-                  ? "Setiap 10 pesanan selesai menghasilkan voucher 10%, maksimal Rp15.000."
-                  : `Total ${member.total_stamps} stamp · siklus ${memberCycle(member.total_stamps)}. Stamp ke-4: diskon; ke-8: gratis aplikasi. Transaksi lunas minimal Rp15.000 = 1 stamp.`}
-              </p>
-            </div>
+            <StampCard member={member} />
             <div className="hub-actions mb-4">
               <button onClick={() => void showCode()}>
                 Lihat / salin kode & tautan kartu
               </button>
             </div>
-            <Field label="Alasan koreksi stamp (wajib)">
+            <Field label="Catatan stamp (opsional)">
               <input
-                minLength={3}
                 maxLength={300}
                 value={reason}
                 onChange={(e) => setReason(e.target.value)}
-                placeholder="Misalnya penyesuaian pesanan lama"
+                placeholder="Contoh: pembelian langsung atau koreksi pesanan"
               />
             </Field>
             <div className="hub-actions">
               <button
-                disabled={hub.busy || reason.trim().length < 3}
+                disabled={hub.busy}
                 onClick={() => void adjust(1)}
               >
-                +1 stamp
+                {hub.busy ? "Memproses…" : "+ Add Stamp"}
               </button>
               <button
                 disabled={
                   hub.busy ||
-                  reason.trim().length < 3 ||
                   member.total_stamps === 0
                 }
                 onClick={() => void adjust(-1)}
               >
-                −1 stamp
+                − Kurangi stamp
               </button>
             </div>
+            <p className="hub-muted mt-3">Catatan kosong dicatat otomatis sebagai penyesuaian admin.</p>
+            {stampNotice && <p role="status" className="mt-3 text-sm text-primary">{stampNotice}</p>}
             <div className="my-5 border-t border-border pt-5">
               <Button
                 onClick={() =>

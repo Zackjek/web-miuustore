@@ -1,6 +1,6 @@
 {
   "private": true,
   "scripts": {
-    "dev": "node --import tsx server.mjs"
+    "dev": "MIUU_QA_PREVIEW=1 node --import tsx server.mjs"
   }
 }

@@ -34,9 +34,12 @@ export default async function sendRentalReminders() {
   if(!publicKey||!privateKey)throw new Error("Kunci VAPID untuk pengingat belum disiapkan.");
   webpush.setVapidDetails("https://miuu-store.netlify.app",publicKey,privateKey);
 
+  const owner=await supabase<string|null>("rpc/miuu_reminder_owner","POST",{});
+  if(!owner)throw new Error("Identitas Miuu Store belum ditetapkan untuk pengingat.");
   const now=Date.now();
   const filters=new URLSearchParams({
     select:"id,owner_id,invoice_seq,rental_end_at,status",
+    owner_id:`eq.${owner}`,
     logged_out_at:"is.null",status:"neq.Dibatalkan",
     order:"rental_end_at.asc",limit:"200",
   });
@@ -45,11 +48,10 @@ export default async function sendRentalReminders() {
   const orders=await supabase<Order[]>(`orders?${filters}`);
   if(!orders.length)return;
 
-  const ownerIds=[...new Set(orders.map(order=>order.owner_id))];
   const orderIds=orders.map(order=>order.id);
   const deviceQuery=new URLSearchParams({
     select:"id,owner_id,endpoint,p256dh,auth",
-    owner_id:`in.(${ownerIds.join(",")})`,limit:"500",
+    owner_id:`eq.${owner}`,limit:"500",
   });
   const devices=await supabase<Device[]>(`push_subscriptions?${deviceQuery}`);
   if(!devices.length)return;

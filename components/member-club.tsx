@@ -4,12 +4,11 @@ import {
   Copy,
   Eye,
   EyeOff,
-  Gift,
-  Heart,
   LogOut,
   ShieldCheck,
 } from "lucide-react";
 import { PublicShell, PixelCat } from "./public-shell";
+import StampCard from "./stamp-card";
 import {
   Dialog,
   DialogContent,
@@ -20,7 +19,7 @@ import {
 import { Field } from "./hub/common";
 import { addDays, dateFmt, invoice, moneyFmt } from "./order-types";
 import { dateDistance } from "@/lib/date-tools";
-import { rewardState, rewardStateText, memberCycle } from "@/lib/loyalty";
+import { rewardState, rewardStateText } from "@/lib/loyalty";
 import type { MemberOrder, MemberProfile } from "@/lib/unified-types";
 const warrantyEnd = (order: MemberOrder) =>
   order.due_date || addDays(order.order_date, order.warranty_days);
@@ -151,7 +150,6 @@ export default function MemberClub() {
       setBusy(false);
     }
   }
-  const target = profile?.customer.program === "classic10" ? 10 : 8;
   const orders = profile?.orders || [],
     warranties = orders.filter(
       (o) =>
@@ -274,64 +272,8 @@ export default function MemberClub() {
               )}
             </section>
             <section className="hub-card">
-              <h2 className="hub-title">
-                Your stamp garden{" "}
-                <Heart className="ml-1 inline size-5 text-primary" />
-              </h2>
-              <div
-                className={"miuu-stamps " + (target === 8 ? "is-eight" : "")}
-              >
-                {Array.from({ length: target }, (_, i) => (
-                  <span
-                    key={i}
-                    className={i < profile.customer.stamps ? "is-stamped" : ""}
-                    aria-label={
-                      i < profile.customer.stamps
-                        ? `Stamp ${i + 1} terkumpul`
-                        : `Stamp ${i + 1} belum terkumpul`
-                    }
-                  >
-                    {i < profile.customer.stamps ? (
-                      <PixelCat className="size-7" />
-                    ) : i === target - 1 ? (
-                      <Gift size={20} />
-                    ) : (
-                      i + 1
-                    )}
-                  </span>
-                ))}
-              </div>
-              <progress
-                className="h-2 w-full accent-primary"
-                value={profile.customer.stamps}
-                max={target}
-                aria-label="Progres stamp"
-              />
-              <p className="hub-muted mt-3">
-                <b>
-                  {profile.customer.stamps}/{target} stamp
-                </b>
-                {target === 8 ? (
-                  <>
-                    {" "}
-                    · total {profile.customer.total_stamps} · siklus{" "}
-                    {memberCycle(profile.customer.total_stamps)}
-                    <br />
-                    {profile.customer.stamps === 8
-                      ? "Kartu penuh! Hadiah gratis aplikasi siap digunakan. Order berikutnya memulai kartu baru."
-                      : `${(profile.customer.stamps < 4 ? 4 : 8) - profile.customer.stamps} stamp lagi menuju ${profile.customer.stamps < 4 ? "voucher diskon" : "gratis 1 aplikasi"}.`}
-                    <br />
-                    Transaksi Lunas minimal Rp15.000 = 1 stamp. Stamp ke-4
-                    mendapat diskon, ke-8 mendapat gratis aplikasi.
-                  </>
-                ) : (
-                  <>
-                    {" "}
-                    · {10 - profile.customer.stamps} lagi untuk voucher diskon
-                    10% (maksimal Rp15.000). Satu pesanan selesai = satu stamp.
-                  </>
-                )}
-              </p>
+              <h2 className="hub-title">Your stamp card ♡</h2>
+              <StampCard member={profile.customer} />
             </section>
             <div className="grid gap-3 sm:grid-cols-4">
               {[
@@ -459,7 +401,7 @@ export default function MemberClub() {
               ))}
               {!profile.vouchers.length && (
                 <p className="hub-muted">
-                  Kumpulkan {target === 8 ? 4 : 10} stamp untuk hadiah pertamamu
+                  Kumpulkan {profile.customer.program !== "classic10" ? 4 : 10} stamp untuk hadiah pertamamu
                   ♡
                 </p>
               )}

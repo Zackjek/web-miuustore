@@ -3,6 +3,7 @@ import { useState, type FormEvent } from "react";
 import type { Store } from "../order-types";
 import type { Category } from "@/lib/unified-types";
 import { storefrontDefaults } from "@/lib/unified-types";
+import { MIUU_NAME, MIUU_SLUG } from "@/lib/store-identity";
 import { Field, ImageUpload, useHub } from "./common";
 import { Button } from "../ui/button";
 export default function StorefrontView({
@@ -15,7 +16,7 @@ export default function StorefrontView({
   openProducts: () => void;
 }) {
   const hub = useHub(reload),
-    [v, setV] = useState({ ...(data.storefront || storefrontDefaults) });
+    [v, setV] = useState({ ...storefrontDefaults, ...data.storefront, shop_name: MIUU_NAME, slug: MIUU_SLUG, is_public: true });
   const [category, setCategory] = useState(""),
     [uploading, setUploading] = useState(false);
   const set = <K extends keyof typeof v>(key: K, value: (typeof v)[K]) =>
@@ -53,7 +54,7 @@ export default function StorefrontView({
           </Button>
           <a
             className="miuu-button"
-            href={"/?toko=" + encodeURIComponent(v.slug)}
+            href="/"
             target="_blank"
             rel="noopener noreferrer"
           >
@@ -61,6 +62,13 @@ export default function StorefrontView({
           </a>
         </div>
       </div>
+      {data.products.some((p) => !p.is_published) && (
+        <section className="hub-card">
+          <h2 className="hub-title">Lengkapi pricelist publik</h2>
+          <p className="hub-muted my-3">{data.products.filter((p) => !p.is_published).length} produk belum tampil di pricelist. Publikasikan nama, paket, dan harga jualnya agar pembeli bisa langsung melihatnya.</p>
+          <Button disabled={hub.busy} onClick={() => void hub.run({ kind: "publish_catalog" }, "POST", "Pricelist Miuu sudah dipublikasikan")}>Publikasikan semua produk</Button>
+        </section>
+      )}
       {hub.error && (
         <p role="alert" className="hub-error">
           {hub.error}
@@ -70,25 +78,10 @@ export default function StorefrontView({
         <section className="hub-card">
           <h2 className="hub-title">Identitas toko ♡</h2>
           <form onSubmit={(e) => void save(e)}>
-            <Field label="Nama toko">
-              <input
-                required
-                maxLength={100}
-                value={v.shop_name}
-                onChange={(e) => set("shop_name", e.target.value)}
-              />
-            </Field>
-            <Field label="Alamat katalog">
-              <input
-                required
-                pattern="[a-z0-9][a-z0-9-]{1,39}"
-                value={v.slug}
-                onChange={(e) => set("slug", e.target.value)}
-              />
-            </Field>
-            <p className="hub-muted mb-4">
-              Gunakan miuu untuk katalog pada halaman utama.
-            </p>
+            <div className="mb-5 rounded-xl bg-secondary p-4">
+              <strong className="block">Miuu Store</strong>
+              <p className="hub-muted mt-1">Katalog tampil di halaman utama. Website ini khusus Miuu Store.</p>
+            </div>
             <Field label="Tagline">
               <input
                 maxLength={200}
@@ -167,14 +160,7 @@ export default function StorefrontView({
                 onChange={(e) => set("canva_invite_url", e.target.value)}
               />
             </Field>
-            <label className="mb-5 flex min-h-11 items-center gap-2 text-sm">
-              <input
-                type="checkbox"
-                checked={v.is_public}
-                onChange={(e) => set("is_public", e.target.checked)}
-              />{" "}
-              Katalog dapat dilihat publik
-            </label>
+            <p className="hub-muted mb-5">Katalog Miuu Store selalu dapat dilihat tanpa login. Atur produk yang ditampilkan melalui menu Produk.</p>
             <Button disabled={hub.busy || uploading} className="min-h-11">
               Simpan pengaturan toko
             </Button>

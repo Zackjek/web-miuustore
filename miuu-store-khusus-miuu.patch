@@ -1,0 +1,1336 @@
+diff --git a/KRITERIA_SUKSES.md b/KRITERIA_SUKSES.md
+index ecccc89..3e6f29b 100644
+--- a/KRITERIA_SUKSES.md
++++ b/KRITERIA_SUKSES.md
+@@ -1,5 +1,17 @@
+ # Kriteria keberhasilan proyek Miuu Store terpadu
+ 
++## Pembaruan 30 Oktober 2026 — khusus Miuu
++
++- Nama Miuu Store, slug `miuu`, dan katalog publik dikunci di API serta database.
++- Akun selain pemilik Miuu ditolak, termasuk akun yang sebelumnya tercatat sebagai admin toko lain.
++- Data historis akun lain disimpan, tetapi katalog, sesi member, tautan order, dan pengingat mereka tidak dilayani oleh website Miuu.
++- Add Stamp tanpa alasan telah diuji lewat tombol dashboard: kartu 3/8 menjadi 4/8 dan voucher diskon terbit.
++- Katalog contoh dengan produk dan harga telah terlihat tanpa login pada pratinjau terpisah.
++- Pemeriksaan otomatis: 12 pengujian TypeScript/API, 43 pemeriksaan database, typecheck, serta build Next.js lulus.
++- Pratinjau menggunakan UI hasil build, API dari source yang sama, dan PostgreSQL sementara. Cookie aman tetap wajib pada produksi; adapter QA menggunakan HTTP.
++- Perubahan ini **belum dipasang pada Supabase/Netlify produksi**. Akses tulis GitHub dan Supabase belum tersedia di sesi pengerjaan ini.
++
++
+ Tanggal pemeriksaan: 28 Oktober 2026. Kriteria di bawah adalah definisi operasional untuk kebutuhan toko ini. Proyek belum dinyatakan selesai secara produksi sebelum pengujian pada akun dan domain sebenarnya dilakukan.
+ 
+ ## Acuan yang dipakai
+@@ -18,7 +30,7 @@ Tanggal pemeriksaan: 28 Oktober 2026. Kriteria di bawah adalah definisi operasio
+ | Universalitas varian | Berlaku untuk aplikasi mana pun; satu harga dan varian tanpa kelompok tetap didukung               | Pengujian parser dan pengelompokan lulus; Netflix dan Canva diuji di preview                  |
+ | Harga acuan          | 13 varian Netflix sesuai lampiran; Semiprivate satu bulan Rp45.000                                 | Pengujian data template lulus                                                                 |
+ | Akses publik         | Pengunjung tidak dapat membaca order/modal/kode privat atau mengubah data                          | Pemeriksaan allow/deny PostgreSQL lulus; payload katalog diproyeksikan terbatas sampai varian |
+-| Admin                | Akun yang tidak masuk daftar admin ditolak; data pemilik lain terisolasi                           | Pemeriksaan database untuk akun nonadmin lulus; sesi admin fixture diuji di browser           |
++| Admin                | Akun yang tidak masuk daftar admin ditolak; akun selain pemilik Miuu ditolak                           | Pemeriksaan database untuk akun nonadmin lulus; sesi admin fixture diuji di browser           |
+ | Loyalty              | Credit transaksi tidak ganda; ambang Rp15.000 benar; hadiah ke-4/ke-8 dan classic10 konsisten      | Pengujian database untuk kedua program, refund, siklus, dan kode lulus                        |
+ | Klaim garansi        | Member mengajukan klaim pada order miliknya; admin dapat memperbarui status                        | Browser: klaim tersimpan, terlihat admin, berubah menjadi Diproses di kartu member            |
+ | Canva                | Akhir bulan benar; jadwal tidak maju dua kali dari aksi yang kedaluwarsa                           | Pengujian database lulus; tim dan jadwal tiga bulan disimpan lewat browser                    |
+diff --git a/PANDUAN_MERGE.md b/PANDUAN_MERGE.md
+index 3872cc2..f77ec4d 100644
+--- a/PANDUAN_MERGE.md
++++ b/PANDUAN_MERGE.md
+@@ -1,5 +1,16 @@
+ # Miuu Store terpadu — panduan pemasangan
+ 
++## Pembaruan khusus Miuu — 30 Oktober 2026
++
++Website ini hanya untuk Miuu Store. Tidak ada pendaftaran penjual atau toko baru. Migrasi terakhir mengikat satu akun pemilik Miuu, mengunci nama dan alamat toko, membatasi katalog/member/tautan order ke Miuu, serta mempertahankan data historis akun lain tanpa memberi mereka akses toko.
++
++Urutan penerapan: terapkan migrasi `20261030000100_miuu_only.sql` pada Supabase yang sama, lalu deploy kode dari repo utama `Zackjek/web-miuustore` ke situs Netlify yang sama. API admin memerlukan fungsi verifikasi baru; deployment kode mendahului migrasi akan menolak akses admin sampai database diperbarui.
++
++Jika pemilik tidak dapat dikenali secara pasti, migrasi membatalkan transaksi. Periksa UUID akun pemilik Miuu di Authentication, lalu jalankan `SET miuu.owner_id = 'UUID_AKUN_MIUU';` di sesi SQL yang sama sebelum mengulang migrasi. Gunakan UUID akun Miuu yang telah diverifikasi. Setelah identitas tersimpan, menjalankan migrasi kembali tidak memilih pemilik baru atau memublikasikan ulang produk yang sengaja disembunyikan.
++
++Pengerjaan ini sudah diuji pada database sementara. Supabase produksi dan Netlify belum diperbarui karena akses tulis GitHub dan Supabase belum terhubung di sesi ini.
++
++
+ Perubahan ini melanjutkan repositori `Zackjek/web-miuustore` dari commit `60fe6c7`. Modul order, profit, nota, garansi, template pesan, watermark, dan notifikasi yang sudah tersedia tetap dipakai. Katalog, loyalty, dan renewal Canva ditambahkan pada aplikasi Next.js yang sama.
+ 
+ ## Satu alamat utama
+@@ -28,10 +39,11 @@ Untuk database Miuu Store yang sudah berjalan, jalankan **hanya empat file berik
+ 2. `supabase/migrations/20261028000200_import_orders.sql`
+ 3. `supabase/migrations/20261028000300_loyalty_programs.sql`
+ 4. `supabase/migrations/20261028000400_push_schema.sql`
++5. `supabase/migrations/20261030000100_miuu_only.sql`
+ 
+-Migrasi menambahkan kolom dan tabel, mengaktifkan kebijakan akses, dan mempertahankan data yang sudah ada. Untuk instalasi baru, jalankan `supabase/schema.sql` dahulu, lalu empat migrasi di atas. File skema awal berisi pembuatan policy/trigger, sehingga tidak perlu dijalankan ulang pada database lama.
++Migrasi menambahkan kolom dan tabel, mengaktifkan kebijakan akses, dan mempertahankan data yang sudah ada. Untuk instalasi baru, jalankan `supabase/schema.sql` dahulu, lalu kelima migrasi di atas. File skema awal berisi pembuatan policy/trigger, sehingga tidak perlu dijalankan ulang pada database lama.
+ 
+-Pengelola yang sudah memiliki data order, produk, supplier, pengeluaran, catatan buyer, atau pengaturan otomatis dimasukkan ke `store_admins`. Akun baru tidak otomatis mendapat akses admin. Bila akun pengelola belum pernah menyimpan data, tambahkan **akun milikmu yang benar** dengan mengganti email pada SQL ini:
++Empat migrasi awal mempertahankan pengelola yang sudah memiliki data di `store_admins`. Migrasi khusus Miuu kemudian membatasi akses ke satu pemilik Miuu saja. Akun baru tidak otomatis mendapat akses admin. Bila akun pengelola belum pernah menyimpan data, tambahkan **akun milikmu yang benar** dengan mengganti email pada SQL ini:
+ 
+ ```sql
+ insert into public.store_admins(owner_id)
+@@ -40,6 +52,8 @@ where lower(email) = lower('EMAIL_ADMIN_MILIKMU')
+ on conflict do nothing;
+ ```
+ 
++Langkah penambahan admin di atas hanya untuk akun pemilik Miuu sebelum identitas dikunci. Akun lain yang ditambahkan setelahnya tetap tidak memperoleh akses atau toko baru.
++
+ Bucket publik `miuu-assets` hanya untuk foto produk/logo. Upload dibatasi PNG, JPG, WebP, atau GIF maksimal 5 MB. Objek baru hanya dapat ditulis admin ke folder miliknya. Tabel order, modal, catatan pribadi, hash kode, dan kunci internal tetap tidak dapat dibaca pengunjung anonim.
+ 
+ ## 3. Merge dan deploy ke Netlify
+@@ -63,8 +77,8 @@ Di Supabase Authentication, pastikan Site URL menggunakan domain toko dan izinka
+ 
+ Masuk melalui `/admin/dashboard`, lalu:
+ 
+-1. Buka **Katalog & toko**. Pertahankan slug `miuu` untuk katalog pada halaman utama. Atur nama, logo, tagline, header, footer, kategori, dan publikasi toko.
+-2. Buka **Products**. Produk yang sama dipakai untuk pemesanan dan katalog. Aktifkan **Tampilkan di pricelist** pada produk yang ingin diumumkan. Produk lama tetap internal sampai dipilih untuk dipublikasikan.
++1. Buka **Katalog & toko**. Identitas Miuu Store dan halaman utama dikunci. Logo, tagline, header, footer, dan kategori tetap dapat diatur.
++2. Buka **Products**. Produk yang sama dipakai untuk pemesanan dan katalog. Aktifkan **Tampilkan di pricelist** pada produk yang ingin diumumkan. Migrasi khusus Miuu memublikasikan pricelist Miuu yang sudah ada. Produk baru tampil secara default; produk yang sengaja disembunyikan tetap internal. Gunakan **Publikasikan semua produk** untuk menampilkan seluruh produk Miuu.
+ 3. Isi varian dengan format `Nama Paket | Durasi = Harga`. Tanpa kelompok, gunakan `Durasi = Harga`. Nama paket dan urutannya bebas untuk seluruh aplikasi.
+ 4. Untuk Netflix, tombol **Isi 13 varian Netflix dari ketentuan** dapat digunakan pada produk Netflix yang sudah ada. Paket Semiprivate satu bulan menggunakan Rp45.000. Modal/supplier tidak diganti oleh template; periksa modal pada order sesuai varian.
+ 5. Isi **Tautan penjelasan produk** bila ingin menambahkan tautan referensi seperti WhatsApp Channel. Tautan channel sebenarnya tidak terdapat dalam lampiran, sehingga tidak diisi dengan alamat perkiraan.
+@@ -84,7 +98,7 @@ Pengaturan program default berlaku untuk member baru. Program member lama dipert
+ 
+ Pada program delapan stamp, member dibuat otomatis dari nomor WA yang valid pada transaksi yang memenuhi syarat. Nomor WA dipakai untuk mencocokkan transaksi berikutnya. Total stamp tetap dicatat; kartu menunjukkan delapan stamp penuh hingga transaksi berikutnya memulai siklus baru. Pembatalan, perubahan menjadi tidak lunas/refund, atau penurunan nilai di bawah batas menarik kembali credit transaksi. Hadiah otomatis yang belum dipakai ditarik bila ambangnya tidak lagi terpenuhi. Hadiah yang sudah dipakai tetap tercatat.
+ 
+-Pada menu Loyalty club, admin dapat mengubah nama/nomor WA, menampilkan atau mengganti kode, menyalin tautan kartu, mengoreksi stamp dengan alasan, memberi hadiah manual, dan memperbarui status hadiah. Nama hadiah dan masa berlakunya dapat diatur; `0` hari berarti tanpa kedaluwarsa. Perubahan nama hadiah berlaku pada hadiah baru.
++Pada menu Loyalty club, admin dapat mengubah nama/nomor WA, menampilkan atau mengganti kode, menyalin tautan kartu, menambah atau mengurangi stamp dengan catatan opsional (server mengisi alasan audit otomatis jika kosong), memberi hadiah manual, dan memperbarui status hadiah. Nama hadiah dan masa berlakunya dapat diatur; `0` hari berarti tanpa kedaluwarsa. Perubahan nama hadiah berlaku pada hadiah baru.
+ 
+ Kode member diverifikasi memakai hash dan disimpan terenkripsi agar admin pemiliknya dapat mengambilnya kembali. Kunci enkripsi berada pada schema privat database. Mengganti kode menutup sesi member lama. Member dapat membuka kartu dengan kode saja; Member ID juga tersedia untuk cara masuk yang lama.
+ 
+diff --git a/README.md b/README.md
+index 4a80be3..4a2697f 100644
+--- a/README.md
++++ b/README.md
+@@ -1,6 +1,6 @@
+ # Miuu Store — little order studio
+ 
+-Aplikasi Next.js untuk katalog publik, pengelolaan pesanan, loyalty, dan renewal Canva pada satu domain. Proyek ini melanjutkan web order Miuu Store yang sudah ada.
++Website khusus Miuu Store untuk katalog publik, pengelolaan pesanan, loyalty, dan renewal Canva pada satu domain. Tidak menyediakan pendaftaran penjual atau toko lain. Proyek ini melanjutkan web order Miuu Store yang sudah ada.
+ 
+ ## Halaman
+ 
+@@ -22,7 +22,15 @@ cp .env.example .env.local
+ npm run dev
+ ```
+ 
+-Isi URL Supabase dan publishable/anon key pada `.env.local`. Untuk instalasi database baru, jalankan `supabase/schema.sql`, lalu empat migrasi dalam urutan timestamp. Untuk database yang sudah dipakai, jalankan migrasi baru saja. Instruksi lengkap tersedia di [PANDUAN_MERGE.md](PANDUAN_MERGE.md).
++Isi URL Supabase dan publishable/anon key pada `.env.local`. Untuk instalasi database baru, jalankan `supabase/schema.sql`, lalu kelima migrasi dalam urutan timestamp. Untuk database yang sudah dipakai, jalankan migrasi baru saja. Instruksi lengkap tersedia di [PANDUAN_MERGE.md](PANDUAN_MERGE.md).
++
++## Pembaruan 30 Oktober 2026
++
++- Identitas Miuu Store dikunci di API dan database. Hanya akun pemilik Miuu yang dapat mengelola data.
++- Katalog hanya pada `/`; parameter toko lain ditolak. Produk baru secara default tampil di pricelist dan tetap dapat disembunyikan satu per satu.
++- Stamp card kucing dan kupu-kupu dipakai bersama di dashboard admin dan halaman pelanggan.
++- Add Stamp bisa langsung diklik; alasan audit otomatis diisi server jika catatan kosong.
++- Terapkan `supabase/migrations/20261030000100_miuu_only.sql` **sebelum** deployment kode ini. Pemilik dipilih dari katalog `miuu` yang sudah ada atau satu akun Miuu yang dapat dikenali dengan pasti; migrasi berhenti bila ambigu.
+ 
+ ## Pemeriksaan
+ 
+diff --git a/app/api/data/route.ts b/app/api/data/route.ts
+index 805fb69..a190e22 100644
+--- a/app/api/data/route.ts
++++ b/app/api/data/route.ts
+@@ -3,6 +3,7 @@ import type {Order,Product,Supplier,Expense,BuyerNote,Settings} from "@/componen
+ import { catalogValues, loadHub, uuid } from "@/lib/hub-server";
+ import {addCalendarMonths} from "@/lib/date-tools";
+ import {isoToWibInput,wibInputToIso} from "@/components/order-types";
++import { assertMiuuIdentity, MIUU_NAME } from "@/lib/store-identity";
+ export const dynamic="force-dynamic";
+ type Payload=Record<string,unknown>;
+ const q=(table:string,values:Record<string,string>)=>table+filter(values);
+@@ -43,7 +44,7 @@ export async function POST(request:Request){
+     }
+     if(kind==="product"){
+       const name=str(data.name,120);if(!name)return bad("Nama produk wajib diisi.");
+-      await rest("products",t,"POST",{id,owner_id,name,variant:str(data.variant,120),duration:str(data.duration,80),cost:money(data.cost),price:money(data.price),supplier:str(data.supplier,120),sort_order:positive(data.sort_order,1),created_at:now,...catalogValues(data)});
++      await rest("products",t,"POST",{id,owner_id,name,variant:str(data.variant,120),duration:str(data.duration,80),cost:money(data.cost),price:money(data.price),supplier:str(data.supplier,120),sort_order:positive(data.sort_order,1),created_at:now,is_published:true,...catalogValues(data)});
+     }else if(kind==="supplier"){
+       const name=str(data.name,120);if(!name)return bad("Nama supplier wajib diisi.");
+       await rest("suppliers",t,"POST",{id,owner_id,name,admin:str(data.admin,120),contact:str(data.contact,80),created_at:now});
+@@ -95,8 +96,9 @@ export async function PATCH(request:Request){
+     }else if(kind==="buyer_note"){
+       await rest(path("buyer_notes"),t,"PATCH",{notes:str(data.notes,2000),updated_at:now});
+     }else if(kind==="settings"){
++      try { assertMiuuIdentity(data); } catch(error) { return bad((error as Error).message); }
+       const color=str(data.receipt_color,7);if(!/^#[0-9a-fA-F]{6}$/.test(color))return bad("Warna nota tidak valid.");
+-      await rest(q("shop_settings",{on_conflict:"owner_id"}),t,"POST",{owner_id,shop_name:str(data.shop_name,100)||"Miuu Store",currency:str(data.currency,8)||"Rp",default_warranty:money(data.default_warranty),receipt_style:["thermal","ticket"].includes(str(data.receipt_style))?str(data.receipt_style):"thermal",receipt_color:color,buyer_template:str(data.buyer_template,2000),account_template:str(data.account_template,2000),seller_wa:str(data.seller_wa,40),updated_at:now},"resolution=merge-duplicates");
++      await rest(q("shop_settings",{on_conflict:"owner_id"}),t,"POST",{owner_id,shop_name:MIUU_NAME,currency:str(data.currency,8)||"Rp",default_warranty:money(data.default_warranty),receipt_style:["thermal","ticket"].includes(str(data.receipt_style))?str(data.receipt_style):"thermal",receipt_color:color,buyer_template:str(data.buyer_template,2000),account_template:str(data.account_template,2000),seller_wa:str(data.seller_wa,40),updated_at:now},"resolution=merge-duplicates");
+     }else return bad("Jenis data tidak dikenal.");
+     return Response.json({ok:true});
+   }catch(error){return failed(error);}
+diff --git a/app/api/hub/route.ts b/app/api/hub/route.ts
+index 4b80270..60f4222 100644
+--- a/app/api/hub/route.ts
++++ b/app/api/hub/route.ts
+@@ -9,6 +9,7 @@ import {
+   verifiedOwner,
+ } from "@/lib/supabase-server";
+ import { requestBody, uuid, webUrl } from "@/lib/hub-server";
++import { assertMiuuIdentity, MIUU_NAME, MIUU_SLUG } from "@/lib/store-identity";
+ export const dynamic = "force-dynamic";
+ 
+ export async function GET(request: Request) {
+@@ -49,25 +50,27 @@ async function mutate(request: Request) {
+         id ? "PATCH" : "POST",
+         { ...values, ...(!id ? { owner_id: owner.id } : {}) },
+       );
++    } else if (kind === "publish_catalog") {
++      await rest(
++        "products" + filter({ owner_id: "eq." + owner.id }),
++        token, "PATCH", { is_published: true },
++      );
+     } else if (kind === "storefront") {
+-      const slug = str(data.slug, 40).toLowerCase();
+-      if (!/^[a-z0-9][a-z0-9-]{1,39}$/.test(slug))
+-        return bad(
+-          "Alamat toko harus 2–40 huruf kecil, angka, atau tanda hubung.",
+-        );
++      try { assertMiuuIdentity(data); }
++      catch (error) { return bad((error as Error).message); }
+       await rest(
+         "storefront_settings?on_conflict=owner_id",
+         token,
+         "POST",
+         {
+           owner_id: owner.id,
+-          slug,
+-          shop_name: str(data.shop_name, 100) || "Miuu Store",
++          slug: MIUU_SLUG,
++          shop_name: MIUU_NAME,
+           tagline: str(data.tagline, 200),
+           header_text: str(data.header_text, 1000),
+           footer_text: str(data.footer_text, 1000),
+           logo_url: webUrl(data.logo_url),
+-          is_public: data.is_public === true,
++          is_public: true,
+           voucher_valid_days: Math.min(money(data.voucher_valid_days), 3650),
+           loyalty_program:
+             data.loyalty_program === "classic10" ? "classic10" : "miuu8",
+@@ -112,7 +115,9 @@ async function mutate(request: Request) {
+       await rpc("adjust_loyalty_stamp", {
+         p_member: data.member_id,
+         p_delta: Number(data.delta),
+-        p_reason: str(data.reason, 300),
++        p_reason: str(data.reason, 300).length >= 3
++          ? str(data.reason, 300)
++          : (Number(data.delta) > 0 ? "Penambahan stamp oleh admin Miuu" : "Pengurangan stamp oleh admin Miuu") + (str(data.reason) ? ": " + str(data.reason) : ""),
+       });
+     } else if (kind === "voucher") {
+       if (!id) return bad("Voucher tidak valid.");
+diff --git a/app/api/storefront/route.ts b/app/api/storefront/route.ts
+index 45f05c9..7369dec 100644
+--- a/app/api/storefront/route.ts
++++ b/app/api/storefront/route.ts
+@@ -1,12 +1,13 @@
+ import { rest } from "@/lib/supabase-server";
++import { isMiuuCatalog, MIUU_SLUG } from "@/lib/store-identity";
+ export const dynamic = "force-dynamic";
+ export async function GET(request: Request) {
+-  const slug = new URL(request.url).searchParams.get("toko") || "miuu";
+-  if (!/^[a-z0-9][a-z0-9-]{1,39}$/.test(slug))
++  const slug = new URL(request.url).searchParams.get("toko");
++  if (!isMiuuCatalog(slug))
+     return Response.json({ error: "Toko tidak ditemukan." }, { status: 404 });
+   try {
+     const result = await rest<unknown>("rpc/public_storefront", null, "POST", {
+-      p_slug: slug,
++      p_slug: MIUU_SLUG,
+     });
+     return result
+       ? Response.json(result, { headers: { "Cache-Control": "no-store" } })
+diff --git a/app/unified.css b/app/unified.css
+index 1c2b19a..8e1b358 100644
+--- a/app/unified.css
++++ b/app/unified.css
+@@ -2,13 +2,15 @@
+   outline: 3px solid var(--primary);
+   outline-offset: 3px;
+ }
+-.miuu-public {
++.miuu-public,
++.miuu-stamp-card {
+   --cute-pink: #f8e6f0;
+   --cute-line: #d9c7eb;
+   --cute-lav: #f1eafa;
+   line-height: 1.6;
+ }
+-.dark .miuu-public {
++.dark .miuu-public,
++.dark .miuu-stamp-card {
+   --cute-pink: #3f293e;
+   --cute-line: #624a77;
+   --cute-lav: #34273f;
+@@ -640,25 +642,51 @@
+   opacity: 0.35;
+   color: var(--primary);
+ }
++.miuu-stamp-card {
++  max-width: 640px;
++  margin: 18px auto;
++  padding: 18px;
++  border: 2px solid var(--cute-line);
++  border-radius: 20px;
++  background: color-mix(in srgb, var(--cute-pink) 25%, var(--card));
++}
++.miuu-stamp-card progress {
++  appearance: none;
++  display: block;
++  width: 100%;
++  height: 8px;
++  border: 0;
++  border-radius: 99px;
++  overflow: hidden;
++  background: var(--border);
++}
++.miuu-stamp-card progress::-webkit-progress-bar { background: var(--border); }
++.miuu-stamp-card progress::-webkit-progress-value { background: var(--primary); }
++.miuu-stamp-card progress::-moz-progress-bar { background: var(--primary); }
++.miuu-stamp-art { width: 65%; height: 65%; }
++.miuu-stamp-gift { width: 36%; height: 36%; }
++.miuu-stamp-empty { width: 30%; height: 30%; opacity: .25; }
++.miuu-stamps small { position: absolute; bottom: 3px; font-size: 10px; font-weight: 700; }
+ .miuu-stamps {
+   display: grid;
+-  grid-template-columns: repeat(10, minmax(0, 1fr));
++  grid-template-columns: repeat(5, minmax(0, 1fr));
+   gap: 9px;
+   margin: 22px 0;
+ }
+ .miuu-stamps > span {
++  position: relative;
+   aspect-ratio: 1;
+   min-width: 0;
+   display: grid;
+   place-items: center;
+-  border: 1px dashed var(--cute-line);
+-  border-radius: 10px;
++  border: 2px dashed var(--cute-line);
++  border-radius: 50%;
+   background: var(--card);
+   font-size: 12px;
+   color: var(--muted-foreground);
+ }
+ .miuu-stamps .is-stamped {
+-  border: 1px solid var(--primary);
++  border: 2px solid var(--primary);
+   background: var(--cute-lav);
+   color: var(--primary);
+ }
+@@ -804,7 +832,7 @@
+   }
+ }
+ .miuu-stamps.is-eight {
+-  grid-template-columns: repeat(8, minmax(0, 1fr));
++  grid-template-columns: repeat(4, minmax(0, 1fr));
+ }
+ .miuu-hero-bunny {
+   position: absolute;
+diff --git a/components/admin-page.tsx b/components/admin-page.tsx
+index 2a0c17f..2a12ab3 100644
+--- a/components/admin-page.tsx
++++ b/components/admin-page.tsx
+@@ -67,7 +67,7 @@ export default function AdminPage() {
+     return (
+       <Workspace
+         displayName={
+-          user.user_metadata?.full_name || user.email.split("@")[0] || "Seller"
++          user.user_metadata?.full_name || user.email.split("@")[0] || "Admin Miuu"
+         }
+         onSignOut={() => void signOut().finally(() => setUser(null))}
+       />
+@@ -147,7 +147,7 @@ export default function AdminPage() {
+           {reset ? "Kembali ke halaman masuk" : "Lupa password?"}
+         </button>
+         <p className="mt-4 text-center text-sm leading-relaxed text-muted-foreground">
+-          Satu ruang untuk order, katalog, member, dan renewal Canva.
++          Khusus pengelola Miuu Store. Kelola order, katalog, member, dan renewal Canva di sini.
+         </p>
+       </div>
+     </main>
+diff --git a/components/catalog.tsx b/components/catalog.tsx
+index 3bd03de..cc5dfe4 100644
+--- a/components/catalog.tsx
++++ b/components/catalog.tsx
+@@ -138,9 +138,8 @@ export default function Catalog() {
+     setLoading(true);
+     setError("");
+     try {
+-      const slug = new URLSearchParams(location.search).get("toko");
+       const response = await fetch(
+-        "/api/storefront" + (slug ? "?toko=" + encodeURIComponent(slug) : ""),
++        "/api/storefront",
+         { cache: "no-store", signal },
+       );
+       const body = await response.json();
+diff --git a/components/hub/loyalty-view.tsx b/components/hub/loyalty-view.tsx
+index b043c3e..9b88b3a 100644
+--- a/components/hub/loyalty-view.tsx
++++ b/components/hub/loyalty-view.tsx
+@@ -4,9 +4,10 @@ import type { Store, Order } from "../order-types";
+ import { invoice, dateFmt, moneyFmt } from "../order-types";
+ import { whatsappNumber } from "@/lib/date-tools";
+ import { authFetch } from "@/lib/browser-auth";
+-import { rewardState, rewardStateText, memberCycle } from "@/lib/loyalty";
++import { rewardState, rewardStateText } from "@/lib/loyalty";
+ import type { LoyaltyMember } from "@/lib/unified-types";
+ import { Field, useHub } from "./common";
++import StampCard from "../stamp-card";
+ import { Button } from "../ui/button";
+ import {
+   Dialog,
+@@ -33,10 +34,11 @@ export default function LoyaltyView({
+ }) {
+   const hub = useHub(reload),
+     [query, setQuery] = useState(""),
+-    [selected, setSelected] = useState("");
++    [selected, setSelected] = useState(data.members[0]?.id || "");
+   const [editor, setEditor] = useState<LoyaltyMember | "new" | null>(null),
+     [credentials, setCredentials] = useState("");
+   const [reason, setReason] = useState("");
++  const [stampNotice, setStampNotice] = useState("");
+   const member = data.members.find((m) => m.id === selected),
+     members = data.members.filter((m) =>
+       (m.name + " " + m.member_id).toLowerCase().includes(query.toLowerCase()),
+@@ -63,11 +65,12 @@ export default function LoyaltyView({
+     }
+   }
+   async function adjust(delta: number) {
+-    if (
+-      member &&
+-      (await hub.run({ kind: "stamp", member_id: member.id, delta, reason }))
+-    )
++    if (!member || hub.busy) return;
++    const ok = await hub.run({ kind: "stamp", member_id: member.id, delta, reason }, "POST", delta > 0 ? "Stamp ditambahkan" : "Stamp dikurangi");
++    if (ok) {
+       setReason("");
++      setStampNotice(delta > 0 ? `Satu stamp ditambahkan untuk ${member.name}.` : `Satu stamp dikurangi untuk ${member.name}.`);
++    }
+   }
+   return (
+     <div className="space-y-5">
+@@ -123,7 +126,9 @@ export default function LoyaltyView({
+                 "hub-list-row flex w-full items-center justify-between gap-3 text-left " +
+                 (selected === m.id ? "text-primary" : "")
+               }
+-              onClick={() => setSelected(m.id)}
++              disabled={hub.busy}
++              aria-pressed={selected === m.id}
++              onClick={() => { setSelected(m.id); setReason(""); setStampNotice(""); }}
+             >
+               <span>
+                 <strong className="block text-sm">{m.name}</strong>
+@@ -155,48 +160,39 @@ export default function LoyaltyView({
+                 Edit member / kode
+               </Button>
+             </div>
+-            <div className="my-5 rounded-xl bg-secondary p-4">
+-              <strong className="serif text-3xl text-primary">
+-                {member.stamps}/{member.program === "classic10" ? 10 : 8}
+-              </strong>
+-              <p className="hub-muted mt-1">
+-                {member.program === "classic10"
+-                  ? "Setiap 10 pesanan selesai menghasilkan voucher 10%, maksimal Rp15.000."
+-                  : `Total ${member.total_stamps} stamp · siklus ${memberCycle(member.total_stamps)}. Stamp ke-4: diskon; ke-8: gratis aplikasi. Transaksi lunas minimal Rp15.000 = 1 stamp.`}
+-              </p>
+-            </div>
++            <StampCard member={member} />
+             <div className="hub-actions mb-4">
+               <button onClick={() => void showCode()}>
+                 Lihat / salin kode & tautan kartu
+               </button>
+             </div>
+-            <Field label="Alasan koreksi stamp (wajib)">
++            <Field label="Catatan stamp (opsional)">
+               <input
+-                minLength={3}
+                 maxLength={300}
+                 value={reason}
+                 onChange={(e) => setReason(e.target.value)}
+-                placeholder="Misalnya penyesuaian pesanan lama"
++                placeholder="Contoh: pembelian langsung atau koreksi pesanan"
+               />
+             </Field>
+             <div className="hub-actions">
+               <button
+-                disabled={hub.busy || reason.trim().length < 3}
++                disabled={hub.busy}
+                 onClick={() => void adjust(1)}
+               >
+-                +1 stamp
++                {hub.busy ? "Memproses…" : "+ Add Stamp"}
+               </button>
+               <button
+                 disabled={
+                   hub.busy ||
+-                  reason.trim().length < 3 ||
+                   member.total_stamps === 0
+                 }
+                 onClick={() => void adjust(-1)}
+               >
+-                −1 stamp
++                − Kurangi stamp
+               </button>
+             </div>
++            <p className="hub-muted mt-3">Catatan kosong dicatat otomatis sebagai penyesuaian admin.</p>
++            {stampNotice && <p role="status" className="mt-3 text-sm text-primary">{stampNotice}</p>}
+             <div className="my-5 border-t border-border pt-5">
+               <Button
+                 onClick={() =>
+diff --git a/components/hub/product-editor.tsx b/components/hub/product-editor.tsx
+index 76c1676..1dfc8c6 100644
+--- a/components/hub/product-editor.tsx
++++ b/components/hub/product-editor.tsx
+@@ -34,7 +34,7 @@ export default function ProductEditor({
+     reference_url: initial?.reference_url || "",
+     category_id: initial?.category_id || "",
+     available: initial?.available !== false,
+-    is_published: initial?.is_published || false,
++    is_published: initial?.is_published ?? true,
+     sort_order: initial?.sort_order || 0,
+     terms: initial?.terms || "",
+   });
+diff --git a/components/hub/storefront-view.tsx b/components/hub/storefront-view.tsx
+index 229cda8..8af45c9 100644
+--- a/components/hub/storefront-view.tsx
++++ b/components/hub/storefront-view.tsx
+@@ -3,6 +3,7 @@ import { useState, type FormEvent } from "react";
+ import type { Store } from "../order-types";
+ import type { Category } from "@/lib/unified-types";
+ import { storefrontDefaults } from "@/lib/unified-types";
++import { MIUU_NAME, MIUU_SLUG } from "@/lib/store-identity";
+ import { Field, ImageUpload, useHub } from "./common";
+ import { Button } from "../ui/button";
+ export default function StorefrontView({
+@@ -15,7 +16,7 @@ export default function StorefrontView({
+   openProducts: () => void;
+ }) {
+   const hub = useHub(reload),
+-    [v, setV] = useState({ ...(data.storefront || storefrontDefaults) });
++    [v, setV] = useState({ ...storefrontDefaults, ...data.storefront, shop_name: MIUU_NAME, slug: MIUU_SLUG, is_public: true });
+   const [category, setCategory] = useState(""),
+     [uploading, setUploading] = useState(false);
+   const set = <K extends keyof typeof v>(key: K, value: (typeof v)[K]) =>
+@@ -53,7 +54,7 @@ export default function StorefrontView({
+           </Button>
+           <a
+             className="miuu-button"
+-            href={"/?toko=" + encodeURIComponent(v.slug)}
++            href="/"
+             target="_blank"
+             rel="noopener noreferrer"
+           >
+@@ -61,6 +62,13 @@ export default function StorefrontView({
+           </a>
+         </div>
+       </div>
++      {data.products.some((p) => !p.is_published) && (
++        <section className="hub-card">
++          <h2 className="hub-title">Lengkapi pricelist publik</h2>
++          <p className="hub-muted my-3">{data.products.filter((p) => !p.is_published).length} produk belum tampil di pricelist. Publikasikan nama, paket, dan harga jualnya agar pembeli bisa langsung melihatnya.</p>
++          <Button disabled={hub.busy} onClick={() => void hub.run({ kind: "publish_catalog" }, "POST", "Pricelist Miuu sudah dipublikasikan")}>Publikasikan semua produk</Button>
++        </section>
++      )}
+       {hub.error && (
+         <p role="alert" className="hub-error">
+           {hub.error}
+@@ -70,25 +78,10 @@ export default function StorefrontView({
+         <section className="hub-card">
+           <h2 className="hub-title">Identitas toko ♡</h2>
+           <form onSubmit={(e) => void save(e)}>
+-            <Field label="Nama toko">
+-              <input
+-                required
+-                maxLength={100}
+-                value={v.shop_name}
+-                onChange={(e) => set("shop_name", e.target.value)}
+-              />
+-            </Field>
+-            <Field label="Alamat katalog">
+-              <input
+-                required
+-                pattern="[a-z0-9][a-z0-9-]{1,39}"
+-                value={v.slug}
+-                onChange={(e) => set("slug", e.target.value)}
+-              />
+-            </Field>
+-            <p className="hub-muted mb-4">
+-              Gunakan miuu untuk katalog pada halaman utama.
+-            </p>
++            <div className="mb-5 rounded-xl bg-secondary p-4">
++              <strong className="block">Miuu Store</strong>
++              <p className="hub-muted mt-1">Katalog tampil di halaman utama. Website ini khusus Miuu Store.</p>
++            </div>
+             <Field label="Tagline">
+               <input
+                 maxLength={200}
+@@ -167,14 +160,7 @@ export default function StorefrontView({
+                 onChange={(e) => set("canva_invite_url", e.target.value)}
+               />
+             </Field>
+-            <label className="mb-5 flex min-h-11 items-center gap-2 text-sm">
+-              <input
+-                type="checkbox"
+-                checked={v.is_public}
+-                onChange={(e) => set("is_public", e.target.checked)}
+-              />{" "}
+-              Katalog dapat dilihat publik
+-            </label>
++            <p className="hub-muted mb-5">Katalog Miuu Store selalu dapat dilihat tanpa login. Atur produk yang ditampilkan melalui menu Produk.</p>
+             <Button disabled={hub.busy || uploading} className="min-h-11">
+               Simpan pengaturan toko
+             </Button>
+diff --git a/components/member-club.tsx b/components/member-club.tsx
+index 195a084..c57dd73 100644
+--- a/components/member-club.tsx
++++ b/components/member-club.tsx
+@@ -4,12 +4,11 @@ import {
+   Copy,
+   Eye,
+   EyeOff,
+-  Gift,
+-  Heart,
+   LogOut,
+   ShieldCheck,
+ } from "lucide-react";
+ import { PublicShell, PixelCat } from "./public-shell";
++import StampCard from "./stamp-card";
+ import {
+   Dialog,
+   DialogContent,
+@@ -20,7 +19,7 @@ import {
+ import { Field } from "./hub/common";
+ import { addDays, dateFmt, invoice, moneyFmt } from "./order-types";
+ import { dateDistance } from "@/lib/date-tools";
+-import { rewardState, rewardStateText, memberCycle } from "@/lib/loyalty";
++import { rewardState, rewardStateText } from "@/lib/loyalty";
+ import type { MemberOrder, MemberProfile } from "@/lib/unified-types";
+ const warrantyEnd = (order: MemberOrder) =>
+   order.due_date || addDays(order.order_date, order.warranty_days);
+@@ -151,7 +150,6 @@ export default function MemberClub() {
+       setBusy(false);
+     }
+   }
+-  const target = profile?.customer.program === "classic10" ? 10 : 8;
+   const orders = profile?.orders || [],
+     warranties = orders.filter(
+       (o) =>
+@@ -274,64 +272,8 @@ export default function MemberClub() {
+               )}
+             </section>
+             <section className="hub-card">
+-              <h2 className="hub-title">
+-                Your stamp garden{" "}
+-                <Heart className="ml-1 inline size-5 text-primary" />
+-              </h2>
+-              <div
+-                className={"miuu-stamps " + (target === 8 ? "is-eight" : "")}
+-              >
+-                {Array.from({ length: target }, (_, i) => (
+-                  <span
+-                    key={i}
+-                    className={i < profile.customer.stamps ? "is-stamped" : ""}
+-                    aria-label={
+-                      i < profile.customer.stamps
+-                        ? `Stamp ${i + 1} terkumpul`
+-                        : `Stamp ${i + 1} belum terkumpul`
+-                    }
+-                  >
+-                    {i < profile.customer.stamps ? (
+-                      <PixelCat className="size-7" />
+-                    ) : i === target - 1 ? (
+-                      <Gift size={20} />
+-                    ) : (
+-                      i + 1
+-                    )}
+-                  </span>
+-                ))}
+-              </div>
+-              <progress
+-                className="h-2 w-full accent-primary"
+-                value={profile.customer.stamps}
+-                max={target}
+-                aria-label="Progres stamp"
+-              />
+-              <p className="hub-muted mt-3">
+-                <b>
+-                  {profile.customer.stamps}/{target} stamp
+-                </b>
+-                {target === 8 ? (
+-                  <>
+-                    {" "}
+-                    · total {profile.customer.total_stamps} · siklus{" "}
+-                    {memberCycle(profile.customer.total_stamps)}
+-                    <br />
+-                    {profile.customer.stamps === 8
+-                      ? "Kartu penuh! Hadiah gratis aplikasi siap digunakan. Order berikutnya memulai kartu baru."
+-                      : `${(profile.customer.stamps < 4 ? 4 : 8) - profile.customer.stamps} stamp lagi menuju ${profile.customer.stamps < 4 ? "voucher diskon" : "gratis 1 aplikasi"}.`}
+-                    <br />
+-                    Transaksi Lunas minimal Rp15.000 = 1 stamp. Stamp ke-4
+-                    mendapat diskon, ke-8 mendapat gratis aplikasi.
+-                  </>
+-                ) : (
+-                  <>
+-                    {" "}
+-                    · {10 - profile.customer.stamps} lagi untuk voucher diskon
+-                    10% (maksimal Rp15.000). Satu pesanan selesai = satu stamp.
+-                  </>
+-                )}
+-              </p>
++              <h2 className="hub-title">Your stamp card ♡</h2>
++              <StampCard member={profile.customer} />
+             </section>
+             <div className="grid gap-3 sm:grid-cols-4">
+               {[
+@@ -459,7 +401,7 @@ export default function MemberClub() {
+               ))}
+               {!profile.vouchers.length && (
+                 <p className="hub-muted">
+-                  Kumpulkan {target === 8 ? 4 : 10} stamp untuk hadiah pertamamu
++                  Kumpulkan {profile.customer.program !== "classic10" ? 4 : 10} stamp untuk hadiah pertamamu
+                   ♡
+                 </p>
+               )}
+diff --git a/components/stamp-card.tsx b/components/stamp-card.tsx
+new file mode 100644
+index 0000000..2dde095
+--- /dev/null
++++ b/components/stamp-card.tsx
+@@ -0,0 +1,49 @@
++import { Gift, Heart } from "lucide-react";
++import { PixelCat } from "./public-shell";
++import { memberCycle } from "@/lib/loyalty";
++import type { LoyaltyMember } from "@/lib/unified-types";
++
++function Butterfly({ className }: { className?: string }) {
++  return (
++    <svg className={className} viewBox="0 0 48 48" fill="none" aria-hidden="true">
++      <path d="M24 25C15 3 2 10 8 24c3 8 12 6 16 1Zm0 0C33 3 46 10 40 24c-3 8-12 6-16 1ZM24 25C11 23 9 38 18 37c4 0 6-7 6-12Zm0 0c13-2 15 13 6 12-4 0-6-7-6-12Z" fill="currentColor" opacity=".75" />
++      <path d="M24 16v22m0-20-4-5m4 5 4-5" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
++    </svg>
++  );
++}
++
++export default function StampCard({ member }: { member: LoyaltyMember }) {
++  const target = member.program === "classic10" ? 10 : 8;
++  const next = target === 8 && member.stamps < 4 ? 4 : target;
++  return (
++    <div className="miuu-stamp-card">
++      <div className="hub-row justify-between">
++        <span className="miuu-eyebrow">meow & butterfly stamp card</span>
++        <span className="hub-pill">{member.stamps}/{target} stamp</span>
++      </div>
++      <div className={"miuu-stamps " + (target === 8 ? "is-eight" : "")} role="group" aria-label={`Kartu stamp ${member.name}: ${member.stamps} dari ${target}`}>
++        {Array.from({ length: target }, (_, i) => {
++          const filled = i < member.stamps;
++          const reward = i === target - 1 || (target === 8 && i === 3);
++          return (
++            <span key={i} className={(filled ? "is-stamped " : "") + (reward ? "is-reward" : "")} aria-label={`Stamp ${i + 1} ${filled ? "terkumpul" : "belum terkumpul"}${reward ? " · hadiah" : ""}`}>
++              {filled ? (i % 2 ? <Butterfly className="miuu-stamp-art" /> : <PixelCat className="miuu-stamp-art" />) : reward ? <Gift className="miuu-stamp-gift" /> : <Heart className="miuu-stamp-empty" />}
++              <small>{i + 1}{reward ? " ✦" : ""}</small>
++            </span>
++          );
++        })}
++      </div>
++      <progress className="h-2 w-full accent-primary" value={member.stamps} max={target} aria-label="Progres stamp" />
++      <p className="hub-muted mt-3" aria-live="polite">
++        {target === 8 ? <>
++          <b>Siklus {memberCycle(member.total_stamps)} · total {member.total_stamps} stamp</b><br />
++          {member.stamps === 8 ? "Kartu penuh! Hadiah gratis aplikasi tersedia di daftar reward. Stamp berikutnya memulai kartu baru." : `${next - member.stamps} stamp lagi menuju ${next === 4 ? "voucher diskon" : "gratis 1 aplikasi"}.`}<br />
++          Transaksi Lunas minimal Rp15.000 = 1 stamp. Hadiah di stamp ke-4 dan ke-8.
++        </> : <>
++          <b>{10 - member.stamps} stamp lagi menuju voucher diskon 10% (maks. Rp15.000).</b><br />
++          Satu pesanan selesai = satu stamp. Setiap 10 stamp, voucher terbit dan kartu dimulai kembali.
++        </>}
++      </p>
++    </div>
++  );
++}
+diff --git a/components/workspace-views.tsx b/components/workspace-views.tsx
+index a911ab8..2ff20ed 100644
+--- a/components/workspace-views.tsx
++++ b/components/workspace-views.tsx
+@@ -143,13 +143,13 @@ function WatermarkView({data}:Props) {
+ 
+ function SettingsView({data,mutate,currency}:Props) {
+   const saved=data.settings||defaultSettings;
+-  const [v,setV]=useState<Settings>({...saved}),[saving,setSaving]=useState(false);
++  const [v,setV]=useState<Settings>({...saved,shop_name:"Miuu Store"}),[saving,setSaving]=useState(false);
+   const set=(key:keyof Settings,value:string|number)=>setV(prev=>({...prev,[key]:value}));
+   async function save(){setSaving(true);try{await mutate("PATCH",{kind:"settings",...v},"Pengaturan disimpan");}catch{}finally{setSaving(false);}}
+   function download(filename:string,content:string,type:string){const url=URL.createObjectURL(new Blob([content],{type}));const a=document.createElement("a");a.href=url;a.download=filename;a.click();setTimeout(()=>URL.revokeObjectURL(url),2000);}
+   function csv(){const columns=["invoice_seq","buyer","buyer_wa","product_name","variant","duration","price","cost","quantity","order_date","due_date","rental_end_at","logged_out_at","status","payment_status","order_at","member_id","refund_amount","notes"];const esc=(v:unknown)=>'"'+String(v??"").replace(/^[=+@-]/,"'$&").replace(/"/g,'""')+'"';const rows=[columns.join(","),...data.orders.map(o=>columns.map(c=>esc(o[c as keyof Order])).join(","))];download("orders-"+isoToday()+".csv","\uFEFF"+rows.join("\r\n"),"text/csv;charset=utf-8");}
+   function backup(){download("miuu-store-backup-"+isoToday()+".json",JSON.stringify({version:1,exported_at:new Date().toISOString(),...data},null,2),"application/json");}
+-  return <div className="grid gap-4 xl:grid-cols-2"><section className={card+" space-y-4"}><h2 className="serif text-xl">Toko & nota</h2><div><label className={label} htmlFor="shop-name">Nama toko</label><Input id="shop-name" className={input} value={v.shop_name} onChange={e=>set("shop_name",e.target.value)}/></div><div><label className={label} htmlFor="seller-wa">WhatsApp seller (untuk pengingat manual)</label><Input id="seller-wa" type="tel" className={input} placeholder="08..." value={v.seller_wa} onChange={e=>set("seller_wa",e.target.value)}/></div><div className="grid gap-3 sm:grid-cols-2"><div><label className={label} htmlFor="shop-currency">Mata uang</label><Input id="shop-currency" className={input} value={v.currency} onChange={e=>set("currency",e.target.value)}/></div><div><label className={label} htmlFor="shop-warranty">Garansi default (hari)</label><Input id="shop-warranty" type="number" min="0" className={input} value={v.default_warranty} onChange={e=>set("default_warranty",Number(e.target.value))}/></div></div><div><span className={label}>Gaya nota</span><Select value={v.receipt_style} onValueChange={x=>set("receipt_style",x)}><SelectTrigger className="h-11 w-full rounded-xl bg-card"><SelectValue/></SelectTrigger><SelectContent><SelectItem value="thermal">Thermal receipt</SelectItem><SelectItem value="ticket">Cute ticket</SelectItem></SelectContent></Select></div><div><label className={label} htmlFor="receipt-color">Warna nota</label><div className="flex gap-2"><Input id="receipt-color" type="color" className="h-11 w-16 rounded-xl p-1" value={v.receipt_color} onChange={e=>set("receipt_color",e.target.value)}/><Input aria-label="Kode warna nota" className={input+" flex-1"} value={v.receipt_color} onChange={e=>set("receipt_color",e.target.value)}/></div></div><Button onClick={()=>void save()} disabled={saving} className="rounded-xl">{saving?"Menyimpan...":"Simpan pengaturan"}</Button></section><section className={card+" space-y-4"}><h2 className="serif text-xl">Default format</h2><p className="text-sm text-muted-foreground">Tag tersedia: &#123;buyer&#125;, &#123;invoice&#125;, &#123;product&#125;, &#123;status&#125;, &#123;link&#125;, &#123;due&#125;.</p><div><label className={label} htmlFor="buyer-template">Pesan konfirmasi order</label><Textarea id="buyer-template" className="min-h-28 rounded-xl" value={v.buyer_template} onChange={e=>set("buyer_template",e.target.value)}/></div><div><label className={label} htmlFor="account-template">Pesan order selesai</label><Textarea id="account-template" className="min-h-28 rounded-xl" value={v.account_template} onChange={e=>set("account_template",e.target.value)}/></div><Button onClick={()=>void save()} disabled={saving} className="rounded-xl">Simpan format</Button></section><section className={card+" xl:col-span-2"}><h2 className="serif text-xl">Backup & ekspor</h2><p className="mt-1 text-sm text-muted-foreground">Unduh salinan data toko. Simpan file backup dengan aman karena memuat nama dan kontak buyer.</p><div className="mt-5 flex flex-wrap gap-2"><Button variant="outline" onClick={backup} className="rounded-xl"><Download size={16}/> Backup semua data (.json)</Button><Button variant="outline" onClick={csv} className="rounded-xl"><Download size={16}/> Export orders (.csv)</Button></div></section></div>;
++  return <div className="grid gap-4 xl:grid-cols-2"><section className={card+" space-y-4"}><h2 className="serif text-xl">Toko & nota</h2><div><label className={label} htmlFor="shop-name">Nama toko</label><Input id="shop-name" className={input} value="Miuu Store" readOnly/></div><div><label className={label} htmlFor="seller-wa">WhatsApp seller (untuk pengingat manual)</label><Input id="seller-wa" type="tel" className={input} placeholder="08..." value={v.seller_wa} onChange={e=>set("seller_wa",e.target.value)}/></div><div className="grid gap-3 sm:grid-cols-2"><div><label className={label} htmlFor="shop-currency">Mata uang</label><Input id="shop-currency" className={input} value={v.currency} onChange={e=>set("currency",e.target.value)}/></div><div><label className={label} htmlFor="shop-warranty">Garansi default (hari)</label><Input id="shop-warranty" type="number" min="0" className={input} value={v.default_warranty} onChange={e=>set("default_warranty",Number(e.target.value))}/></div></div><div><span className={label}>Gaya nota</span><Select value={v.receipt_style} onValueChange={x=>set("receipt_style",x)}><SelectTrigger className="h-11 w-full rounded-xl bg-card"><SelectValue/></SelectTrigger><SelectContent><SelectItem value="thermal">Thermal receipt</SelectItem><SelectItem value="ticket">Cute ticket</SelectItem></SelectContent></Select></div><div><label className={label} htmlFor="receipt-color">Warna nota</label><div className="flex gap-2"><Input id="receipt-color" type="color" className="h-11 w-16 rounded-xl p-1" value={v.receipt_color} onChange={e=>set("receipt_color",e.target.value)}/><Input aria-label="Kode warna nota" className={input+" flex-1"} value={v.receipt_color} onChange={e=>set("receipt_color",e.target.value)}/></div></div><Button onClick={()=>void save()} disabled={saving} className="rounded-xl">{saving?"Menyimpan...":"Simpan pengaturan"}</Button></section><section className={card+" space-y-4"}><h2 className="serif text-xl">Default format</h2><p className="text-sm text-muted-foreground">Tag tersedia: &#123;buyer&#125;, &#123;invoice&#125;, &#123;product&#125;, &#123;status&#125;, &#123;link&#125;, &#123;due&#125;.</p><div><label className={label} htmlFor="buyer-template">Pesan konfirmasi order</label><Textarea id="buyer-template" className="min-h-28 rounded-xl" value={v.buyer_template} onChange={e=>set("buyer_template",e.target.value)}/></div><div><label className={label} htmlFor="account-template">Pesan order selesai</label><Textarea id="account-template" className="min-h-28 rounded-xl" value={v.account_template} onChange={e=>set("account_template",e.target.value)}/></div><Button onClick={()=>void save()} disabled={saving} className="rounded-xl">Simpan format</Button></section><section className={card+" xl:col-span-2"}><h2 className="serif text-xl">Backup & ekspor</h2><p className="mt-1 text-sm text-muted-foreground">Unduh salinan data toko. Simpan file backup dengan aman karena memuat nama dan kontak buyer.</p><div className="mt-5 flex flex-wrap gap-2"><Button variant="outline" onClick={backup} className="rounded-xl"><Download size={16}/> Backup semua data (.json)</Button><Button variant="outline" onClick={csv} className="rounded-xl"><Download size={16}/> Export orders (.csv)</Button></div></section></div>;
+ }
+ 
+ export function SimpleForm({kind,item,onSubmit,pending}:{kind:string;item?:Order|Product|Supplier|Expense|BuyerNote|null;onSubmit:(v:Record<string,unknown>)=>Promise<void>;pending:boolean}) {
+diff --git a/lib/browser-auth.ts b/lib/browser-auth.ts
+index aa52990..8182d2d 100644
+--- a/lib/browser-auth.ts
++++ b/lib/browser-auth.ts
+@@ -34,10 +34,6 @@ export async function signIn(email:string,password:string){
+   const session=setFromAuth(result);if(!session)throw new Error("Login belum berhasil.");
+   return session.user||await currentUser();
+ }
+-export async function signUp(email:string,password:string){
+-  const result=await auth("signup","POST",{email,password});
+-  const session=setFromAuth(result);return session?.user||null;
+-}
+ async function refresh(){
+   const current=saved();if(!current)return null;
+   try{const result=await auth("token?grant_type=refresh_token","POST",{refresh_token:current.refresh_token});return setFromAuth(result);}catch{store(null);return null;}
+diff --git a/lib/store-identity.ts b/lib/store-identity.ts
+new file mode 100644
+index 0000000..20f4691
+--- /dev/null
++++ b/lib/store-identity.ts
+@@ -0,0 +1,15 @@
++export const MIUU_NAME = "Miuu Store";
++export const MIUU_SLUG = "miuu";
++
++export function isMiuuCatalog(slug: string | null) {
++  return slug === null || slug === MIUU_SLUG;
++}
++
++export function assertMiuuIdentity(values: Record<string, unknown>) {
++  if (
++    ("slug" in values && values.slug !== MIUU_SLUG) ||
++    ("shop_name" in values && values.shop_name !== MIUU_NAME) ||
++    ("is_public" in values && values.is_public !== true)
++  )
++    throw new Error("Website ini khusus Miuu Store. Identitas dan alamat toko tidak dapat diganti.");
++}
+diff --git a/lib/supabase-server.ts b/lib/supabase-server.ts
+index 1da6aea..7608717 100644
+--- a/lib/supabase-server.ts
++++ b/lib/supabase-server.ts
+@@ -14,8 +14,10 @@ export async function verifiedOwner(request:Request) {
+   if(!response.ok)return null;
+   const user=await response.json() as {id?:string};
+   if(!user.id)return null;
+-  const admins=await rest<{owner_id:string}[]>("store_admins"+filter({select:"owner_id",owner_id:"eq."+user.id}),token);
+-  if(!admins.length)throw new HttpError("Akun ini belum terdaftar sebagai admin toko.",403);
++  let owner:string|null;
++  try { owner=await rest<string|null>("rpc/miuu_admin_owner",token,"POST",{}); }
++  catch { throw new HttpError("Verifikasi pengelola Miuu belum tersedia. Periksa koneksi dan pembaruan database Miuu Store.",503); }
++  if(owner!==user.id)throw new HttpError("Akun ini tidak memiliki akses pengelola Miuu Store.",403);
+   return {id:user.id,token};
+ }
+ export async function rest<T>(path:string,token:string|null=null,method="GET",body?:unknown,prefer?:string):Promise<T> {
+diff --git a/netlify/functions/send-rental-reminders.mts b/netlify/functions/send-rental-reminders.mts
+index 17a4719..86f95fb 100644
+--- a/netlify/functions/send-rental-reminders.mts
++++ b/netlify/functions/send-rental-reminders.mts
+@@ -34,9 +34,12 @@ export default async function sendRentalReminders() {
+   if(!publicKey||!privateKey)throw new Error("Kunci VAPID untuk pengingat belum disiapkan.");
+   webpush.setVapidDetails("https://miuu-store.netlify.app",publicKey,privateKey);
+ 
++  const owner=await supabase<string|null>("rpc/miuu_reminder_owner","POST",{});
++  if(!owner)throw new Error("Identitas Miuu Store belum ditetapkan untuk pengingat.");
+   const now=Date.now();
+   const filters=new URLSearchParams({
+     select:"id,owner_id,invoice_seq,rental_end_at,status",
++    owner_id:`eq.${owner}`,
+     logged_out_at:"is.null",status:"neq.Dibatalkan",
+     order:"rental_end_at.asc",limit:"200",
+   });
+@@ -45,11 +48,10 @@ export default async function sendRentalReminders() {
+   const orders=await supabase<Order[]>(`orders?${filters}`);
+   if(!orders.length)return;
+ 
+-  const ownerIds=[...new Set(orders.map(order=>order.owner_id))];
+   const orderIds=orders.map(order=>order.id);
+   const deviceQuery=new URLSearchParams({
+     select:"id,owner_id,endpoint,p256dh,auth",
+-    owner_id:`in.(${ownerIds.join(",")})`,limit:"500",
++    owner_id:`eq.${owner}`,limit:"500",
+   });
+   const devices=await supabase<Device[]>(`push_subscriptions?${deviceQuery}`);
+   if(!devices.length)return;
+@@ -102,4 +104,4 @@ export default async function sendRentalReminders() {
+     }
+   }));
+   console.log(`Pengingat: ${Math.min(jobs.length,60)} dicoba, ${Math.max(0,jobs.length-60)} menunggu.`);
+-}
+\ No newline at end of file
++}
+diff --git a/package.json b/package.json
+index 1ddb132..7e21a80 100644
+--- a/package.json
++++ b/package.json
+@@ -10,7 +10,7 @@
+     "build": "next build --webpack",
+     "start": "next start",
+     "typecheck": "tsc --noEmit",
+-    "test": "node --import tsx --test tests/domain.test.ts tests/pagination.test.ts && node tests/database.test.mjs"
++    "test": "node --import tsx --test tests/domain.test.ts tests/pagination.test.ts tests/api.test.ts && node tests/database.test.mjs"
+   },
+   "dependencies": {
+     "@base-ui/react": "1.7.0",
+diff --git a/supabase/migrations/20261030000100_miuu_only.sql b/supabase/migrations/20261030000100_miuu_only.sql
+new file mode 100644
+index 0000000..665f787
+--- /dev/null
++++ b/supabase/migrations/20261030000100_miuu_only.sql
+@@ -0,0 +1,175 @@
++-- Website khusus Miuu Store. Jalankan setelah empat migrasi 20261028.
++-- Identitas pemilik dikunci sekali; data historis akun lain tetap disimpan.
++begin;
++
++create table if not exists miuu_private.store_identity (
++  singleton boolean primary key default true check(singleton),
++  owner_id uuid not null unique references auth.users(id)
++);
++revoke all on miuu_private.store_identity from public, anon, authenticated;
++
++do $$
++declare selected uuid; candidates integer; initial_setup boolean := false; previous_uid text;
++begin
++  select owner_id into selected from miuu_private.store_identity where singleton;
++  if selected is null then
++    -- Untuk kasus ambigu, operator dapat menentukan akun Miuu melalui
++    -- SET LOCAL miuu.owner_id = '<UUID akun Miuu>' dalam transaksi migrasi.
++    selected := nullif(current_setting('miuu.owner_id', true), '')::uuid;
++    if selected is not null and not exists(select 1 from public.store_admins where owner_id=selected) then
++      raise exception 'Akun Miuu yang dipilih belum terdaftar sebagai pengelola.';
++    end if;
++    if selected is null then
++      select s.owner_id into selected from public.storefront_settings s
++      join public.store_admins a on a.owner_id=s.owner_id where s.slug='miuu';
++    end if;
++    if selected is null then
++      select count(*) into candidates from public.store_admins;
++      if candidates=1 then select owner_id into selected from public.store_admins; end if;
++    end if;
++    if selected is null then
++      select count(*) into candidates from public.store_admins a
++      join public.shop_settings s on s.owner_id=a.owner_id where lower(trim(s.shop_name)) in ('miuu','miuu store');
++      if candidates=1 then
++        select a.owner_id into selected from public.store_admins a
++        join public.shop_settings s on s.owner_id=a.owner_id where lower(trim(s.shop_name)) in ('miuu','miuu store');
++      end if;
++    end if;
++    if selected is null then
++      raise exception 'Pemilik Miuu belum dapat ditentukan dengan pasti. Tentukan miuu.owner_id milik Miuu sebelum menjalankan migrasi.';
++    end if;
++    insert into miuu_private.store_identity(owner_id) values(selected);
++    initial_setup := true;
++  end if;
++
++  if initial_setup then
++    update public.storefront_settings set is_public=false where owner_id<>selected;
++    update public.storefront_settings set slug='archived-'||left(replace(owner_id::text,'-',''),24)
++      where slug='miuu' and owner_id<>selected;
++    insert into public.storefront_settings(owner_id,slug,shop_name,is_public)
++      values(selected,'miuu','Miuu Store',true)
++      on conflict(owner_id) do update set slug='miuu',shop_name='Miuu Store',is_public=true;
++    -- Publikasikan pricelist Miuu yang memang diminta tampil di halaman utama.
++    -- Kolom modal, supplier dan data buyer tidak masuk respons katalog publik.
++    previous_uid := current_setting('request.jwt.claim.sub',true);
++    perform set_config('request.jwt.claim.sub',selected::text,true);
++    update public.products set is_published=true where owner_id=selected and not is_published;
++    perform set_config('request.jwt.claim.sub',coalesce(previous_uid,''),true);
++  end if;
++end;
++$$;
++
++create or replace function public.is_store_admin() returns boolean
++language sql stable security definer set search_path='' as $$
++  select exists(select 1 from miuu_private.store_identity i join public.store_admins a on a.owner_id=i.owner_id
++    where i.singleton and i.owner_id=(select auth.uid()));
++$$;
++
++create or replace function public.miuu_admin_owner() returns uuid
++language sql stable security definer set search_path='' as $$
++  select i.owner_id from miuu_private.store_identity i where i.singleton and public.is_store_admin();
++$$;
++revoke all on function public.miuu_admin_owner() from public,anon;
++grant execute on function public.miuu_admin_owner() to authenticated;
++
++-- Fungsi jadwal memakai kredensial server, tetapi tetap hanya memproses Miuu.
++create or replace function public.miuu_reminder_owner() returns uuid
++language sql stable security definer set search_path='' as $$
++  select owner_id from miuu_private.store_identity where singleton;
++$$;
++revoke all on function public.miuu_reminder_owner() from public,anon,authenticated;
++grant execute on function public.miuu_reminder_owner() to service_role;
++
++drop policy if exists "admin reads own membership" on public.store_admins;
++create policy "admin reads own membership" on public.store_admins for select to authenticated
++  using(owner_id=(select auth.uid()) and (select public.is_store_admin()));
++
++create or replace function miuu_private.enforce_miuu_settings() returns trigger
++language plpgsql security definer set search_path='' as $$
++begin
++  if not exists(select 1 from miuu_private.store_identity where singleton and owner_id=new.owner_id)
++    or new.shop_name is distinct from 'Miuu Store' then
++    raise exception 'Website ini khusus Miuu Store. Identitas toko tidak dapat diganti.';
++  end if;
++  if tg_table_name='storefront_settings' then
++    if new.slug is distinct from 'miuu' or new.is_public is distinct from true then
++      raise exception 'Katalog Miuu Store hanya tersedia pada halaman utama dan selalu publik.';
++    end if;
++  end if;
++  return new;
++end;
++$$;
++revoke all on function miuu_private.enforce_miuu_settings() from public,anon,authenticated;
++drop trigger if exists enforce_miuu_identity on public.storefront_settings;
++create trigger enforce_miuu_identity before insert or update on public.storefront_settings
++  for each row execute function miuu_private.enforce_miuu_settings();
++drop trigger if exists enforce_miuu_identity on public.shop_settings;
++create trigger enforce_miuu_identity before insert or update on public.shop_settings
++  for each row execute function miuu_private.enforce_miuu_settings();
++revoke delete on public.storefront_settings, public.shop_settings from authenticated;
++alter table public.products alter column is_published set default true;
++
++-- Fungsi publik di bawah tetap menggunakan daftar kolom aman dari migrasi asal.
++
++create or replace function public.public_storefront(p_slug text default 'miuu') returns jsonb
++language plpgsql stable security definer set search_path = '' as $$
++declare s public.storefront_settings;
++begin
++  select * into s from public.storefront_settings where p_slug='miuu' and slug='miuu' and is_public and owner_id=(select owner_id from miuu_private.store_identity where singleton);
++  if not found then return null; end if;
++  return jsonb_build_object('settings',jsonb_build_object('shop_name',s.shop_name,'tagline',s.tagline,'header_text',s.header_text,'footer_text',s.footer_text,'logo_url',s.logo_url,'slug',s.slug),
++    'products',coalesce((select jsonb_agg(jsonb_build_object('id',p.id,'name',p.name,'price',p.price,'variant',p.variant,'duration',p.duration,
++      'description',p.description,'image_url',p.image_url,'reference_url',p.reference_url,'category_id',p.category_id,'available',p.available,'is_published',p.is_published,
++      'variants',coalesce((select jsonb_agg(jsonb_build_object('label',v.value->>'label','price',v.value->'price') order by v.ordinal) from jsonb_array_elements(p.variants) with ordinality as v(value,ordinal)),'[]'::jsonb),'package_notes',p.package_notes,'terms',p.terms,'sort_order',p.sort_order) order by p.sort_order,p.created_at) from public.products p where p.owner_id=s.owner_id and p.is_published),'[]'::jsonb),
++    'categories',coalesce((select jsonb_agg(jsonb_build_object('id',c.id,'name',c.name,'sort_order',c.sort_order) order by c.sort_order,c.name) from public.catalog_categories c where c.owner_id=s.owner_id),'[]'::jsonb));
++end;
++$$;
++
++create or replace function public.login_loyalty_member(p_member_id text,p_code text) returns jsonb language plpgsql security definer set search_path='' as $$
++declare m public.loyalty_members;k text;n integer;token text;code text;
++begin
++ if length(coalesce(p_member_id,''))>40 or length(coalesce(p_code,''))>64 then return jsonb_build_object('error','Member ID atau kode akses tidak sesuai.');end if;
++ code=miuu_private.normalize_code(p_code);
++ if coalesce(trim(p_member_id),'')='' then select * into m from public.loyalty_members where code_lookup=miuu_private.lookup_code(code) and owner_id=(select owner_id from miuu_private.store_identity where singleton);
++ else select * into m from public.loyalty_members where member_id=upper(trim(p_member_id)) and owner_id=(select owner_id from miuu_private.store_identity where singleton);end if;
++ k=encode(sha256(convert_to(coalesce(m.id::text,upper(trim(coalesce(p_member_id,'')))||':'||miuu_private.lookup_code(code)),'UTF8')),'hex');
++ insert into miuu_private.login_limits(key) values(k) on conflict do nothing;
++ perform 1 from miuu_private.login_limits where key=k for update;
++ update miuu_private.login_limits set attempts=0,started_at=now() where key=k and started_at<now()-interval '15 minutes';
++ select attempts into n from miuu_private.login_limits where key=k;
++ if n>=5 then return jsonb_build_object('error','Terlalu banyak percobaan. Coba lagi dalam 15 menit.');end if;
++ if m.id is null or m.code_hash is distinct from miuu_private.code_hash(code,m.code_hash) then update miuu_private.login_limits set attempts=attempts+1 where key=k;return jsonb_build_object('error','Member ID atau kode akses tidak sesuai.');end if;
++ delete from miuu_private.login_limits where key=k;
++ delete from miuu_private.member_sessions where expires_at<now();delete from miuu_private.login_limits where started_at<now()-interval '1 day';
++ token=replace(gen_random_uuid()::text||gen_random_uuid()::text,'-','');insert into miuu_private.member_sessions(token_hash,member_id) values(encode(sha256(convert_to(token,'UTF8')),'hex'),m.id);
++ return jsonb_build_object('token',token);
++end;
++$$;
++
++create or replace function miuu_private.session_member(p_token text) returns uuid
++language sql stable security definer set search_path='' as $$
++  select s.member_id from miuu_private.member_sessions s
++  join public.loyalty_members m on m.id=s.member_id
++  join miuu_private.store_identity i on i.owner_id=m.owner_id and i.singleton
++  where s.token_hash=encode(sha256(convert_to(p_token,'UTF8')),'hex') and s.expires_at>now();
++$$;
++
++create or replace function public.lookup_progress(p_code text) returns jsonb
++language plpgsql security definer set search_path = '' as $$
++declare o record;
++begin
++  if p_code !~ '^RO-[0-9A-F]{20}$' then return null; end if;
++  select id,invoice_seq,product_name,variant,duration,order_date,due_date,warranty_days,rental_end_at,status,public_note,updated_at
++  into o from public.orders where tracking_code = p_code and owner_id=(select owner_id from miuu_private.store_identity where singleton);
++  if not found then return null; end if;
++  return jsonb_build_object(
++    'order', jsonb_build_object('invoice_seq',o.invoice_seq,'product_name',o.product_name,'variant',o.variant,
++      'duration',o.duration,'order_date',o.order_date,'due_date',o.due_date,'warranty_days',o.warranty_days,
++      'rental_end_at',o.rental_end_at,'status',o.status,'public_note',o.public_note,'updated_at',o.updated_at),
++    'events', coalesce((select jsonb_agg(jsonb_build_object('status',e.status,'note',e.note,'created_at',e.created_at) order by e.created_at desc)
++      from (select status,note,created_at from public.order_events where order_id=o.id order by created_at desc limit 50) e),'[]'::jsonb)
++  );
++end;
++$$;
++
++commit;
+diff --git a/tests/api.test.ts b/tests/api.test.ts
+new file mode 100644
+index 0000000..6558436
+--- /dev/null
++++ b/tests/api.test.ts
+@@ -0,0 +1,63 @@
++import { test } from "node:test";
++import assert from "node:assert/strict";
++import { POST as hub } from "../app/api/hub/route";
++import { GET as catalog } from "../app/api/storefront/route";
++import { PATCH as dataPatch } from "../app/api/data/route";
++
++test("Miuu API enforces the bound admin and fixed identity, and records one-click stamp additions", async (t) => {
++  const originalFetch = globalThis.fetch;
++  const oldUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
++  const oldKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
++  t.after(() => {
++    globalThis.fetch = originalFetch;
++    if (oldUrl === undefined) delete process.env.NEXT_PUBLIC_SUPABASE_URL;
++    else process.env.NEXT_PUBLIC_SUPABASE_URL = oldUrl;
++    if (oldKey === undefined) delete process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
++    else process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY = oldKey;
++  });
++  process.env.NEXT_PUBLIC_SUPABASE_URL = "https://qa.invalid";
++  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY = "qa-public";
++  const owner = "11111111-1111-4111-8111-111111111111";
++  const other = "22222222-2222-4222-8222-222222222222";
++  let currentUser = owner;
++  const calls: { path: string; method: string; body: Record<string, unknown> }[] = [];
++  globalThis.fetch = async (input, init) => {
++    const url = new URL(String(input));
++    const body = init?.body ? JSON.parse(String(init.body)) : {};
++    calls.push({ path: url.pathname, method: init?.method || "GET", body });
++    let result: unknown = null;
++    if (url.pathname === "/auth/v1/user") result = { id: currentUser };
++    else if (url.pathname === "/rest/v1/rpc/miuu_admin_owner") result = currentUser === owner ? owner : null;
++    else if (url.pathname === "/rest/v1/rpc/public_storefront") result = { settings: { shop_name: "Miuu Store" }, products: [] };
++    else if (url.pathname === "/rest/v1/rpc/adjust_loyalty_stamp") result = true;
++    return Response.json(result);
++  };
++  const post = (body: Record<string, unknown>) => hub(new Request("https://miuu.invalid/api/hub", {
++    method: "POST", headers: { Authorization: "Bearer qa-token", "Content-Type": "application/json" }, body: JSON.stringify(body),
++  }));
++  assert.equal((await post({ kind: "stamp", member_id: other, delta: 1, reason: "" })).status, 200);
++  const stamp = calls.find((c) => c.path.endsWith("/adjust_loyalty_stamp"))!;
++  assert.equal(stamp.body.p_delta, 1);
++  assert.equal(stamp.body.p_reason, "Penambahan stamp oleh admin Miuu");
++  assert.equal((await post({ kind: "stamp", member_id: other, delta: 1, reason: "Pembelian offline" })).status, 200);
++  assert.equal(calls.at(-1)!.body.p_reason, "Pembelian offline");
++  const writes = () => calls.filter((c) => !c.path.includes("/auth/") && !c.path.endsWith("/miuu_admin_owner")).length;
++  const before = writes();
++  for (const values of [{ slug: "other-shop" }, { shop_name: "Other shop" }, { is_public: false }])
++    assert.equal((await post({ kind: "storefront", ...values })).status, 400);
++  assert.equal(writes(), before);
++  const renamed = await dataPatch(new Request("https://miuu.invalid/api/data", {
++    method: "PATCH", headers: { Authorization: "Bearer qa-token", "Content-Type": "application/json" },
++    body: JSON.stringify({ kind: "settings", shop_name: "Other shop" }),
++  }));
++  assert.equal(renamed.status, 400);
++  const beforeCatalog = calls.length;
++  assert.equal((await catalog(new Request("https://miuu.invalid/api/storefront?toko=other-shop"))).status, 404);
++  assert.equal(calls.length, beforeCatalog);
++  assert.equal((await catalog(new Request("https://miuu.invalid/api/storefront"))).status, 200);
++  assert.equal(calls.at(-1)!.body.p_slug, "miuu");
++  currentUser = other;
++  const beforeUnauthorized = writes();
++  assert.equal((await post({ kind: "publish_catalog" })).status, 403);
++  assert.equal(writes(), beforeUnauthorized);
++});
+diff --git a/tests/database.test.mjs b/tests/database.test.mjs
+index a1b1cda..4c20f4a 100644
+--- a/tests/database.test.mjs
++++ b/tests/database.test.mjs
+@@ -519,6 +519,90 @@ try {
+         .error,
+     ),
+   );
++  // Test the upgrade using a second, previously approved store and an old session.
++  await role("");
++  await db.query("insert into public.store_admins(owner_id) values($1) on conflict do nothing", [other]);
++  await role("authenticated", other);
++  await db.query("insert into public.shop_settings(owner_id,shop_name) values($1,'Other shop') on conflict(owner_id) do update set shop_name='Other shop'", [other]);
++  await db.query("insert into public.storefront_settings(owner_id,slug,shop_name) values($1,'other-shop','Other shop') on conflict(owner_id) do update set slug='other-shop'", [other]);
++  await db.query("select public.save_loyalty_member_v2(null,'Other member','OTHER-QA','OTHERCODE88','','miuu8')");
++  await db.query("insert into public.orders(owner_id,tracking_code,buyer,product_name,price) values($1,'RO-FFFFFFFFFFFFFFFFFFFF','Other buyer','Other product',10000)", [other]);
++  await role("anon");
++  const otherLogin = await scalar("select public.login_loyalty_member('OTHER-QA','OTHERCODE88')");
++  assert.ok(otherLogin.token);
++  await role("");
++  const miuuOnlyMigration = await readFile(new URL("../supabase/migrations/20261030000100_miuu_only.sql", import.meta.url), "utf8");
++  await db.exec(miuuOnlyMigration);
++  await check("migration binds the existing canonical Miuu owner without deleting other data", async () => {
++    assert.equal(await scalar("select owner_id from miuu_private.store_identity"), owner);
++    assert.equal(Number(await scalar("select count(*) from public.orders where owner_id=$1", [other])), 1);
++    assert.equal(await scalar("select is_public from public.storefront_settings where owner_id=$1", [other]), false);
++  });
++  await role("authenticated", owner);
++  await check("only the Miuu owner can use the admin API", async () => {
++    assert.equal(await scalar("select public.miuu_admin_owner()"), owner);
++    assert.equal(await scalar("select public.is_store_admin()"), true);
++  });
++  await check("store name, slug and public access are fixed even through direct SQL", async () => {
++    await denied("update public.storefront_settings set slug='another-shop'");
++    await denied("update public.storefront_settings set shop_name='Another shop'");
++    await denied("update public.storefront_settings set is_public=false");
++    await denied("update public.shop_settings set shop_name='Another shop'");
++    await denied("delete from public.storefront_settings");
++    await denied("delete from public.shop_settings");
++    await denied("insert into miuu_private.store_identity(owner_id) values($1)", [other]);
++  });
++  await check("existing Miuu products are published and new products default to public", async () => {
++    assert.equal(Number(await scalar("select count(*) from public.products where not is_published")), 0);
++    assert.equal(await scalar("insert into public.products(name,price) values('New Miuu product',20000) returning is_published"), true);
++  });
++  await db.query("update public.products set is_published=false where id=$1", [product]);
++  await role("");
++  await db.exec(miuuOnlyMigration);
++  await check("rerunning the upgrade preserves an explicitly hidden product", async () => {
++    assert.equal(await scalar("select is_published from public.products where id=$1", [product]), false);
++    assert.equal(Number(await scalar("select count(*) from miuu_private.store_identity")), 1);
++  });
++  await role("authenticated", other);
++  await check("a former store admin cannot manage or create another store", async () => {
++    assert.equal(await scalar("select public.is_store_admin()"), false);
++    assert.equal(await scalar("select public.miuu_admin_owner()"), null);
++    assert.equal(Number(await scalar("select count(*) from public.store_admins")), 0);
++    assert.equal(Number(await scalar("select count(*) from public.orders")), 0);
++    await denied("insert into public.products(name,price) values('Unauthorized',1)");
++    await denied("insert into public.storefront_settings(owner_id,slug) values($1,'new-shop')", [other]);
++    await denied("select public.save_loyalty_member_v2(null,'New member','OTHER-NEW','NEWCODE88','','miuu8')");
++  });
++  await role("anon");
++  await check("public catalog supports Miuu only and never exposes wholesale fields", async () => {
++    assert.equal(await scalar("select public.public_storefront('other-shop')"), null);
++    const miuuCatalog = await scalar("select public.public_storefront('miuu')");
++    assert.equal(miuuCatalog.settings.shop_name, "Miuu Store");
++    assert.equal(miuuCatalog.settings.slug, "miuu");
++    assert.ok(miuuCatalog.products.length > 0);
++    for (const p of miuuCatalog.products) {
++      for (const key of ["cost", "supplier", "owner_id", "buyer_wa"]) assert.equal(key in p, false);
++      for (const v of p.variants) {
++        assert.equal("cost" in v, false);
++        assert.equal("supplier" in v, false);
++      }
++    }
++    assert.equal(miuuCatalog.products.some((p) => p.id === product), false);
++  });
++  await check("other stores' member credentials, old sessions and order links stop working", async () => {
++    assert.ok((await scalar("select public.login_loyalty_member('OTHER-QA','OTHERCODE88')")).error);
++    assert.ok((await scalar("select public.login_loyalty_member('','OTHERCODE88')")).error);
++    assert.equal(await scalar("select public.loyalty_member_profile($1)", [otherLogin.token]), null);
++    assert.equal(await scalar("select public.lookup_progress('RO-FFFFFFFFFFFFFFFFFFFF')"), null);
++    assert.ok((await scalar("select public.login_loyalty_member('','NEWCODE88')")).token);
++  });
++  await check("scheduled reminders resolve only Miuu and the server-only resolver is private", async () => {
++    await denied("select public.miuu_reminder_owner()");
++    await role("authenticated", owner);
++    await denied("select public.miuu_reminder_owner()");
++    await role("service_role");
++    assert.equal(await scalar("select public.miuu_reminder_owner()"), owner);
++  });
+   console.log(`Database checks passed: ${checks}`);
+ } finally {
+   await db.close();
+diff --git a/tests/preview/package.json b/tests/preview/package.json
+index 7ac1411..0be7b39 100644
+--- a/tests/preview/package.json
++++ b/tests/preview/package.json
+@@ -1,6 +1,6 @@
+ {
+   "private": true,
+   "scripts": {
+-    "dev": "node --import tsx server.mjs"
++    "dev": "MIUU_QA_PREVIEW=1 node --import tsx server.mjs"
+   }
+ }
+diff --git a/tests/preview/server.mjs b/tests/preview/server.mjs
+index fe3c601..492fd36 100644
+--- a/tests/preview/server.mjs
++++ b/tests/preview/server.mjs
+@@ -1,10 +1,12 @@
+ // Isolated QA adapter. Runs the real Next build against disposable PostgreSQL data.
+ // It never connects to the user's Supabase project and is not a deployment entry point.
++import "next/dist/server/node-environment-baseline.js";
+ import http from "node:http";
+ import { readFile } from "node:fs/promises";
+ import path from "node:path";
+ import { fileURLToPath } from "node:url";
+ import next from "next";
++import { NextRequest } from "next/server";
+ import { PGlite } from "@electric-sql/pglite";
+ import { pgcrypto } from "@electric-sql/pglite/contrib/pgcrypto";
+ import { netflixTemplate } from "../../lib/catalog.ts";
+@@ -39,6 +41,8 @@ for (const file of [
+   "20261028000100_unified_store.sql",
+   "20261028000200_import_orders.sql",
+   "20261028000300_loyalty_programs.sql",
++  "20261028000400_push_schema.sql",
++  "20261030000100_miuu_only.sql",
+ ])
+   await db.exec(
+     await readFile(path.join(root, "supabase/migrations", file), "utf8"),
+@@ -299,37 +303,66 @@ async function api(req, res, url) {
+     }
+   });
+ }
+-const app = next({ dev: false, dir: root, hostname: host, port });
+-await app.prepare();
+-const handle = app.getRequestHandler();
+ const upstreamFetch = globalThis.fetch;
+-globalThis.fetch = (input, init) => {
+-  const value =
+-    typeof input === "string"
+-      ? input
+-      : input instanceof Request
+-        ? input.url
+-        : input instanceof URL
+-          ? input.toString()
+-          : "";
++globalThis.fetch = async (input, init) => {
++  const value = typeof input === "string" ? input : input instanceof Request ? input.url : input instanceof URL ? input.toString() : "";
+   if (value.includes("/__qa/supabase/")) {
+-    const route = value.startsWith("/")
+-      ? value
+-      : new URL(value).pathname + new URL(value).search;
+-    const target = `http://localhost:${port}${route}`;
+-    return upstreamFetch(
+-      input instanceof Request ? new Request(target, input) : target,
+-      init,
+-    );
++    const target = new URL(value, `http://localhost:${port}`);
++    const headers = new Headers(init?.headers || (input instanceof Request ? input.headers : {}));
++    const payload = init?.body ?? (input instanceof Request ? await input.text() : "");
++    const request = {
++      method: init?.method || (input instanceof Request ? input.method : "GET"),
++      headers: Object.fromEntries(headers),
++      async *[Symbol.asyncIterator]() { if (payload) yield Buffer.from(String(payload)); },
++    };
++    // Keep disposable Supabase traffic inside this process; no network or
++    // production credentials are involved in fixture database requests.
++    return new Promise((resolve, reject) => {
++      let status = 200, responseHeaders = {};
++      const response = {
++        writeHead(code, extra) { status = code; responseHeaders = extra; },
++        end(data) { resolve(new Response(data, { status, headers: responseHeaders })); },
++      };
++      api(request, response, target).catch(reject);
++    });
+   }
+   return upstreamFetch(input, init);
+ };
++const app = next({ dev: false, dir: root, hostname: host, port });
++await app.prepare();
++const handle = app.getRequestHandler();
++// The real UI build uses relative fixture URLs in the browser. Load the real
++// source API routes here so server env remains runtime-configurable in QA.
++const routes = new Map(await Promise.all([
++  "storefront", "hub", "data", "loyalty", "progress", "import", "push", "upload",
++].map(async (name) => ["/api/" + name, await import(path.join(root, "app/api", name, "route.ts"))])));
+ const server = http.createServer(async (req, res) => {
+   const url = new URL(req.url, `http://localhost:${port}`);
+   if (url.pathname.startsWith("/__qa/supabase/"))
+     return api(req, res, url).catch((e) =>
+       send(res, 500, { message: e.message }),
+     );
++  if (routes.has(url.pathname)) {
++    try {
++      const handler = routes.get(url.pathname)[req.method];
++      if (!handler) return send(res, 405, { error: "Method not allowed" });
++      const chunks = [];
++      for await (const chunk of req) chunks.push(chunk);
++      const headers = new Headers();
++      for (const [key, value] of Object.entries(req.headers))
++        if (value) headers.set(key, Array.isArray(value) ? value.join(",") : value);
++      const input = new NextRequest(url, {
++        method: req.method, headers,
++        ...(["GET", "HEAD"].includes(req.method) ? {} : { body: Buffer.concat(chunks) }),
++      });
++      const response = await handler(input);
++      const outputHeaders = Object.fromEntries(response.headers);
++      // Managed QA preview is HTTP; production keeps secure cookies.
++      if (outputHeaders["set-cookie"]) outputHeaders["set-cookie"] = outputHeaders["set-cookie"].replace(/; Secure/gi, "");
++      res.writeHead(response.status, outputHeaders);
++      return res.end(Buffer.from(await response.arrayBuffer()));
++    } catch (error) { return send(res, 500, { error: error.message }); }
++  }
+   if (url.pathname === "/__qa/workspace") {
+     res.writeHead(200, { "content-type": "text/html;charset=utf-8" });
+     return res.end(

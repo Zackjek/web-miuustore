@@ -138,9 +138,8 @@ export default function Catalog() {
     setLoading(true);
     setError("");
     try {
-      const slug = new URLSearchParams(location.search).get("toko");
       const response = await fetch(
-        "/api/storefront" + (slug ? "?toko=" + encodeURIComponent(slug) : ""),
+        "/api/storefront",
         { cache: "no-store", signal },
       );
       const body = await response.json();

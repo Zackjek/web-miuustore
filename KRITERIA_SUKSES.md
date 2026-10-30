@@ -1,5 +1,17 @@
 # Kriteria keberhasilan proyek Miuu Store terpadu
 
+## Pembaruan 30 Oktober 2026 — khusus Miuu
+
+- Nama Miuu Store, slug `miuu`, dan katalog publik dikunci di API serta database.
+- Akun selain pemilik Miuu ditolak, termasuk akun yang sebelumnya tercatat sebagai admin toko lain.
+- Data historis akun lain disimpan, tetapi katalog, sesi member, tautan order, dan pengingat mereka tidak dilayani oleh website Miuu.
+- Add Stamp tanpa alasan telah diuji lewat tombol dashboard: kartu 3/8 menjadi 4/8 dan voucher diskon terbit.
+- Katalog contoh dengan produk dan harga telah terlihat tanpa login pada pratinjau terpisah.
+- Pemeriksaan otomatis: 12 pengujian TypeScript/API, 43 pemeriksaan database, typecheck, serta build Next.js lulus.
+- Pratinjau menggunakan UI hasil build, API dari source yang sama, dan PostgreSQL sementara. Cookie aman tetap wajib pada produksi; adapter QA menggunakan HTTP.
+- Perubahan ini **belum dipasang pada Supabase/Netlify produksi**. Akses tulis GitHub dan Supabase belum tersedia di sesi pengerjaan ini.
+
+
 Tanggal pemeriksaan: 28 Oktober 2026. Kriteria di bawah adalah definisi operasional untuk kebutuhan toko ini. Proyek belum dinyatakan selesai secara produksi sebelum pengujian pada akun dan domain sebenarnya dilakukan.
 
 ## Acuan yang dipakai
@@ -18,7 +30,7 @@ Tanggal pemeriksaan: 28 Oktober 2026. Kriteria di bawah adalah definisi operasio
 | Universalitas varian | Berlaku untuk aplikasi mana pun; satu harga dan varian tanpa kelompok tetap didukung               | Pengujian parser dan pengelompokan lulus; Netflix dan Canva diuji di preview                  |
 | Harga acuan          | 13 varian Netflix sesuai lampiran; Semiprivate satu bulan Rp45.000                                 | Pengujian data template lulus                                                                 |
 | Akses publik         | Pengunjung tidak dapat membaca order/modal/kode privat atau mengubah data                          | Pemeriksaan allow/deny PostgreSQL lulus; payload katalog diproyeksikan terbatas sampai varian |
-| Admin                | Akun yang tidak masuk daftar admin ditolak; data pemilik lain terisolasi                           | Pemeriksaan database untuk akun nonadmin lulus; sesi admin fixture diuji di browser           |
+| Admin                | Akun yang tidak masuk daftar admin ditolak; akun selain pemilik Miuu ditolak                           | Pemeriksaan database untuk akun nonadmin lulus; sesi admin fixture diuji di browser           |
 | Loyalty              | Credit transaksi tidak ganda; ambang Rp15.000 benar; hadiah ke-4/ke-8 dan classic10 konsisten      | Pengujian database untuk kedua program, refund, siklus, dan kode lulus                        |
 | Klaim garansi        | Member mengajukan klaim pada order miliknya; admin dapat memperbarui status                        | Browser: klaim tersimpan, terlihat admin, berubah menjadi Diproses di kartu member            |
 | Canva                | Akhir bulan benar; jadwal tidak maju dua kali dari aksi yang kedaluwarsa                           | Pengujian database lulus; tim dan jadwal tiga bulan disimpan lewat browser                    |

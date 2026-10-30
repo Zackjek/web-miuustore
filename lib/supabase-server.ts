@@ -14,8 +14,10 @@ export async function verifiedOwner(request:Request) {
   if(!response.ok)return null;
   const user=await response.json() as {id?:string};
   if(!user.id)return null;
-  const admins=await rest<{owner_id:string}[]>("store_admins"+filter({select:"owner_id",owner_id:"eq."+user.id}),token);
-  if(!admins.length)throw new HttpError("Akun ini belum terdaftar sebagai admin toko.",403);
+  let owner:string|null;
+  try { owner=await rest<string|null>("rpc/miuu_admin_owner",token,"POST",{}); }
+  catch { throw new HttpError("Verifikasi pengelola Miuu belum tersedia. Periksa koneksi dan pembaruan database Miuu Store.",503); }
+  if(owner!==user.id)throw new HttpError("Akun ini tidak memiliki akses pengelola Miuu Store.",403);
   return {id:user.id,token};
 }
 export async function rest<T>(path:string,token:string|null=null,method="GET",body?:unknown,prefer?:string):Promise<T> {

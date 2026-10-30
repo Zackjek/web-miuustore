@@ -34,7 +34,7 @@ export default function ProductEditor({
     reference_url: initial?.reference_url || "",
     category_id: initial?.category_id || "",
     available: initial?.available !== false,
-    is_published: initial?.is_published || false,
+    is_published: initial?.is_published ?? true,
     sort_order: initial?.sort_order || 0,
     terms: initial?.terms || "",
   });

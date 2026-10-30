@@ -3,6 +3,7 @@ import type {Order,Product,Supplier,Expense,BuyerNote,Settings} from "@/componen
 import { catalogValues, loadHub, uuid } from "@/lib/hub-server";
 import {addCalendarMonths} from "@/lib/date-tools";
 import {isoToWibInput,wibInputToIso} from "@/components/order-types";
+import { assertMiuuIdentity, MIUU_NAME } from "@/lib/store-identity";
 export const dynamic="force-dynamic";
 type Payload=Record<string,unknown>;
 const q=(table:string,values:Record<string,string>)=>table+filter(values);
@@ -43,7 +44,7 @@ export async function POST(request:Request){
     }
     if(kind==="product"){
       const name=str(data.name,120);if(!name)return bad("Nama produk wajib diisi.");
-      await rest("products",t,"POST",{id,owner_id,name,variant:str(data.variant,120),duration:str(data.duration,80),cost:money(data.cost),price:money(data.price),supplier:str(data.supplier,120),sort_order:positive(data.sort_order,1),created_at:now,...catalogValues(data)});
+      await rest("products",t,"POST",{id,owner_id,name,variant:str(data.variant,120),duration:str(data.duration,80),cost:money(data.cost),price:money(data.price),supplier:str(data.supplier,120),sort_order:positive(data.sort_order,1),created_at:now,is_published:true,...catalogValues(data)});
     }else if(kind==="supplier"){
       const name=str(data.name,120);if(!name)return bad("Nama supplier wajib diisi.");
       await rest("suppliers",t,"POST",{id,owner_id,name,admin:str(data.admin,120),contact:str(data.contact,80),created_at:now});
@@ -95,8 +96,9 @@ export async function PATCH(request:Request){
     }else if(kind==="buyer_note"){
       await rest(path("buyer_notes"),t,"PATCH",{notes:str(data.notes,2000),updated_at:now});
     }else if(kind==="settings"){
+      try { assertMiuuIdentity(data); } catch(error) { return bad((error as Error).message); }
       const color=str(data.receipt_color,7);if(!/^#[0-9a-fA-F]{6}$/.test(color))return bad("Warna nota tidak valid.");
-      await rest(q("shop_settings",{on_conflict:"owner_id"}),t,"POST",{owner_id,shop_name:str(data.shop_name,100)||"Miuu Store",currency:str(data.currency,8)||"Rp",default_warranty:money(data.default_warranty),receipt_style:["thermal","ticket"].includes(str(data.receipt_style))?str(data.receipt_style):"thermal",receipt_color:color,buyer_template:str(data.buyer_template,2000),account_template:str(data.account_template,2000),seller_wa:str(data.seller_wa,40),updated_at:now},"resolution=merge-duplicates");
+      await rest(q("shop_settings",{on_conflict:"owner_id"}),t,"POST",{owner_id,shop_name:MIUU_NAME,currency:str(data.currency,8)||"Rp",default_warranty:money(data.default_warranty),receipt_style:["thermal","ticket"].includes(str(data.receipt_style))?str(data.receipt_style):"thermal",receipt_color:color,buyer_template:str(data.buyer_template,2000),account_template:str(data.account_template,2000),seller_wa:str(data.seller_wa,40),updated_at:now},"resolution=merge-duplicates");
     }else return bad("Jenis data tidak dikenal.");
     return Response.json({ok:true});
   }catch(error){return failed(error);}

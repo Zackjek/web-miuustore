@@ -519,6 +519,90 @@ try {
         .error,
     ),
   );
+  // Test the upgrade using a second, previously approved store and an old session.
+  await role("");
+  await db.query("insert into public.store_admins(owner_id) values($1) on conflict do nothing", [other]);
+  await role("authenticated", other);
+  await db.query("insert into public.shop_settings(owner_id,shop_name) values($1,'Other shop') on conflict(owner_id) do update set shop_name='Other shop'", [other]);
+  await db.query("insert into public.storefront_settings(owner_id,slug,shop_name) values($1,'other-shop','Other shop') on conflict(owner_id) do update set slug='other-shop'", [other]);
+  await db.query("select public.save_loyalty_member_v2(null,'Other member','OTHER-QA','OTHERCODE88','','miuu8')");
+  await db.query("insert into public.orders(owner_id,tracking_code,buyer,product_name,price) values($1,'RO-FFFFFFFFFFFFFFFFFFFF','Other buyer','Other product',10000)", [other]);
+  await role("anon");
+  const otherLogin = await scalar("select public.login_loyalty_member('OTHER-QA','OTHERCODE88')");
+  assert.ok(otherLogin.token);
+  await role("");
+  const miuuOnlyMigration = await readFile(new URL("../supabase/migrations/20261030000100_miuu_only.sql", import.meta.url), "utf8");
+  await db.exec(miuuOnlyMigration);
+  await check("migration binds the existing canonical Miuu owner without deleting other data", async () => {
+    assert.equal(await scalar("select owner_id from miuu_private.store_identity"), owner);
+    assert.equal(Number(await scalar("select count(*) from public.orders where owner_id=$1", [other])), 1);
+    assert.equal(await scalar("select is_public from public.storefront_settings where owner_id=$1", [other]), false);
+  });
+  await role("authenticated", owner);
+  await check("only the Miuu owner can use the admin API", async () => {
+    assert.equal(await scalar("select public.miuu_admin_owner()"), owner);
+    assert.equal(await scalar("select public.is_store_admin()"), true);
+  });
+  await check("store name, slug and public access are fixed even through direct SQL", async () => {
+    await denied("update public.storefront_settings set slug='another-shop'");
+    await denied("update public.storefront_settings set shop_name='Another shop'");
+    await denied("update public.storefront_settings set is_public=false");
+    await denied("update public.shop_settings set shop_name='Another shop'");
+    await denied("delete from public.storefront_settings");
+    await denied("delete from public.shop_settings");
+    await denied("insert into miuu_private.store_identity(owner_id) values($1)", [other]);
+  });
+  await check("existing Miuu products are published and new products default to public", async () => {
+    assert.equal(Number(await scalar("select count(*) from public.products where not is_published")), 0);
+    assert.equal(await scalar("insert into public.products(name,price) values('New Miuu product',20000) returning is_published"), true);
+  });
+  await db.query("update public.products set is_published=false where id=$1", [product]);
+  await role("");
+  await db.exec(miuuOnlyMigration);
+  await check("rerunning the upgrade preserves an explicitly hidden product", async () => {
+    assert.equal(await scalar("select is_published from public.products where id=$1", [product]), false);
+    assert.equal(Number(await scalar("select count(*) from miuu_private.store_identity")), 1);
+  });
+  await role("authenticated", other);
+  await check("a former store admin cannot manage or create another store", async () => {
+    assert.equal(await scalar("select public.is_store_admin()"), false);
+    assert.equal(await scalar("select public.miuu_admin_owner()"), null);
+    assert.equal(Number(await scalar("select count(*) from public.store_admins")), 0);
+    assert.equal(Number(await scalar("select count(*) from public.orders")), 0);
+    await denied("insert into public.products(name,price) values('Unauthorized',1)");
+    await denied("insert into public.storefront_settings(owner_id,slug) values($1,'new-shop')", [other]);
+    await denied("select public.save_loyalty_member_v2(null,'New member','OTHER-NEW','NEWCODE88','','miuu8')");
+  });
+  await role("anon");
+  await check("public catalog supports Miuu only and never exposes wholesale fields", async () => {
+    assert.equal(await scalar("select public.public_storefront('other-shop')"), null);
+    const miuuCatalog = await scalar("select public.public_storefront('miuu')");
+    assert.equal(miuuCatalog.settings.shop_name, "Miuu Store");
+    assert.equal(miuuCatalog.settings.slug, "miuu");
+    assert.ok(miuuCatalog.products.length > 0);
+    for (const p of miuuCatalog.products) {
+      for (const key of ["cost", "supplier", "owner_id", "buyer_wa"]) assert.equal(key in p, false);
+      for (const v of p.variants) {
+        assert.equal("cost" in v, false);
+        assert.equal("supplier" in v, false);
+      }
+    }
+    assert.equal(miuuCatalog.products.some((p) => p.id === product), false);
+  });
+  await check("other stores' member credentials, old sessions and order links stop working", async () => {
+    assert.ok((await scalar("select public.login_loyalty_member('OTHER-QA','OTHERCODE88')")).error);
+    assert.ok((await scalar("select public.login_loyalty_member('','OTHERCODE88')")).error);
+    assert.equal(await scalar("select public.loyalty_member_profile($1)", [otherLogin.token]), null);
+    assert.equal(await scalar("select public.lookup_progress('RO-FFFFFFFFFFFFFFFFFFFF')"), null);
+    assert.ok((await scalar("select public.login_loyalty_member('','NEWCODE88')")).token);
+  });
+  await check("scheduled reminders resolve only Miuu and the server-only resolver is private", async () => {
+    await denied("select public.miuu_reminder_owner()");
+    await role("authenticated", owner);
+    await denied("select public.miuu_reminder_owner()");
+    await role("service_role");
+    assert.equal(await scalar("select public.miuu_reminder_owner()"), owner);
+  });
   console.log(`Database checks passed: ${checks}`);
 } finally {
   await db.close();

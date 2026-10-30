@@ -10,7 +10,7 @@
     "build": "next build --webpack",
     "start": "next start",
     "typecheck": "tsc --noEmit",
-    "test": "node --import tsx --test tests/domain.test.ts tests/pagination.test.ts && node tests/database.test.mjs"
+    "test": "node --import tsx --test tests/domain.test.ts tests/pagination.test.ts tests/api.test.ts && node tests/database.test.mjs"
   },
   "dependencies": {
     "@base-ui/react": "1.7.0",

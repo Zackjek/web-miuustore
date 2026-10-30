@@ -34,10 +34,6 @@ export async function signIn(email:string,password:string){
   const session=setFromAuth(result);if(!session)throw new Error("Login belum berhasil.");
   return session.user||await currentUser();
 }
-export async function signUp(email:string,password:string){
-  const result=await auth("signup","POST",{email,password});
-  const session=setFromAuth(result);return session?.user||null;
-}
 async function refresh(){
   const current=saved();if(!current)return null;
   try{const result=await auth("token?grant_type=refresh_token","POST",{refresh_token:current.refresh_token});return setFromAuth(result);}catch{store(null);return null;}

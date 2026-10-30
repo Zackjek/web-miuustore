@@ -1,10 +1,12 @@
 // Isolated QA adapter. Runs the real Next build against disposable PostgreSQL data.
 // It never connects to the user's Supabase project and is not a deployment entry point.
+import "next/dist/server/node-environment-baseline.js";
 import http from "node:http";
 import { readFile } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import next from "next";
+import { NextRequest } from "next/server";
 import { PGlite } from "@electric-sql/pglite";
 import { pgcrypto } from "@electric-sql/pglite/contrib/pgcrypto";
 import { netflixTemplate } from "../../lib/catalog.ts";
@@ -39,6 +41,8 @@ for (const file of [
   "20261028000100_unified_store.sql",
   "20261028000200_import_orders.sql",
   "20261028000300_loyalty_programs.sql",
+  "20261028000400_push_schema.sql",
+  "20261030000100_miuu_only.sql",
 ])
   await db.exec(
     await readFile(path.join(root, "supabase/migrations", file), "utf8"),
@@ -299,37 +303,66 @@ async function api(req, res, url) {
     }
   });
 }
-const app = next({ dev: false, dir: root, hostname: host, port });
-await app.prepare();
-const handle = app.getRequestHandler();
 const upstreamFetch = globalThis.fetch;
-globalThis.fetch = (input, init) => {
-  const value =
-    typeof input === "string"
-      ? input
-      : input instanceof Request
-        ? input.url
-        : input instanceof URL
-          ? input.toString()
-          : "";
+globalThis.fetch = async (input, init) => {
+  const value = typeof input === "string" ? input : input instanceof Request ? input.url : input instanceof URL ? input.toString() : "";
   if (value.includes("/__qa/supabase/")) {
-    const route = value.startsWith("/")
-      ? value
-      : new URL(value).pathname + new URL(value).search;
-    const target = `http://localhost:${port}${route}`;
-    return upstreamFetch(
-      input instanceof Request ? new Request(target, input) : target,
-      init,
-    );
+    const target = new URL(value, `http://localhost:${port}`);
+    const headers = new Headers(init?.headers || (input instanceof Request ? input.headers : {}));
+    const payload = init?.body ?? (input instanceof Request ? await input.text() : "");
+    const request = {
+      method: init?.method || (input instanceof Request ? input.method : "GET"),
+      headers: Object.fromEntries(headers),
+      async *[Symbol.asyncIterator]() { if (payload) yield Buffer.from(String(payload)); },
+    };
+    // Keep disposable Supabase traffic inside this process; no network or
+    // production credentials are involved in fixture database requests.
+    return new Promise((resolve, reject) => {
+      let status = 200, responseHeaders = {};
+      const response = {
+        writeHead(code, extra) { status = code; responseHeaders = extra; },
+        end(data) { resolve(new Response(data, { status, headers: responseHeaders })); },
+      };
+      api(request, response, target).catch(reject);
+    });
   }
   return upstreamFetch(input, init);
 };
+const app = next({ dev: false, dir: root, hostname: host, port });
+await app.prepare();
+const handle = app.getRequestHandler();
+// The real UI build uses relative fixture URLs in the browser. Load the real
+// source API routes here so server env remains runtime-configurable in QA.
+const routes = new Map(await Promise.all([
+  "storefront", "hub", "data", "loyalty", "progress", "import", "push", "upload",
+].map(async (name) => ["/api/" + name, await import(path.join(root, "app/api", name, "route.ts"))])));
 const server = http.createServer(async (req, res) => {
   const url = new URL(req.url, `http://localhost:${port}`);
   if (url.pathname.startsWith("/__qa/supabase/"))
     return api(req, res, url).catch((e) =>
       send(res, 500, { message: e.message }),
     );
+  if (routes.has(url.pathname)) {
+    try {
+      const handler = routes.get(url.pathname)[req.method];
+      if (!handler) return send(res, 405, { error: "Method not allowed" });
+      const chunks = [];
+      for await (const chunk of req) chunks.push(chunk);
+      const headers = new Headers();
+      for (const [key, value] of Object.entries(req.headers))
+        if (value) headers.set(key, Array.isArray(value) ? value.join(",") : value);
+      const input = new NextRequest(url, {
+        method: req.method, headers,
+        ...(["GET", "HEAD"].includes(req.method) ? {} : { body: Buffer.concat(chunks) }),
+      });
+      const response = await handler(input);
+      const outputHeaders = Object.fromEntries(response.headers);
+      // Managed QA preview is HTTP; production keeps secure cookies.
+      if (outputHeaders["set-cookie"]) outputHeaders["set-cookie"] = outputHeaders["set-cookie"].replace(/; Secure/gi, "");
+      res.writeHead(response.status, outputHeaders);
+      return res.end(Buffer.from(await response.arrayBuffer()));
+    } catch (error) { return send(res, 500, { error: error.message }); }
+  }
   if (url.pathname === "/__qa/workspace") {
     res.writeHead(200, { "content-type": "text/html;charset=utf-8" });
     return res.end(

@@ -1,5 +1,16 @@
 # Miuu Store terpadu — panduan pemasangan
 
+## Pembaruan khusus Miuu — 30 Oktober 2026
+
+Website ini hanya untuk Miuu Store. Tidak ada pendaftaran penjual atau toko baru. Migrasi terakhir mengikat satu akun pemilik Miuu, mengunci nama dan alamat toko, membatasi katalog/member/tautan order ke Miuu, serta mempertahankan data historis akun lain tanpa memberi mereka akses toko.
+
+Urutan penerapan: terapkan migrasi `20261030000100_miuu_only.sql` pada Supabase yang sama, lalu deploy kode dari repo utama `Zackjek/web-miuustore` ke situs Netlify yang sama. API admin memerlukan fungsi verifikasi baru; deployment kode mendahului migrasi akan menolak akses admin sampai database diperbarui.
+
+Jika pemilik tidak dapat dikenali secara pasti, migrasi membatalkan transaksi. Periksa UUID akun pemilik Miuu di Authentication, lalu jalankan `SET miuu.owner_id = 'UUID_AKUN_MIUU';` di sesi SQL yang sama sebelum mengulang migrasi. Gunakan UUID akun Miuu yang telah diverifikasi. Setelah identitas tersimpan, menjalankan migrasi kembali tidak memilih pemilik baru atau memublikasikan ulang produk yang sengaja disembunyikan.
+
+Pengerjaan ini sudah diuji pada database sementara. Supabase produksi dan Netlify belum diperbarui karena akses tulis GitHub dan Supabase belum terhubung di sesi ini.
+
+
 Perubahan ini melanjutkan repositori `Zackjek/web-miuustore` dari commit `60fe6c7`. Modul order, profit, nota, garansi, template pesan, watermark, dan notifikasi yang sudah tersedia tetap dipakai. Katalog, loyalty, dan renewal Canva ditambahkan pada aplikasi Next.js yang sama.
 
 ## Satu alamat utama
@@ -28,10 +39,11 @@ Untuk database Miuu Store yang sudah berjalan, jalankan **hanya empat file berik
 2. `supabase/migrations/20261028000200_import_orders.sql`
 3. `supabase/migrations/20261028000300_loyalty_programs.sql`
 4. `supabase/migrations/20261028000400_push_schema.sql`
+5. `supabase/migrations/20261030000100_miuu_only.sql`
 
-Migrasi menambahkan kolom dan tabel, mengaktifkan kebijakan akses, dan mempertahankan data yang sudah ada. Untuk instalasi baru, jalankan `supabase/schema.sql` dahulu, lalu empat migrasi di atas. File skema awal berisi pembuatan policy/trigger, sehingga tidak perlu dijalankan ulang pada database lama.
+Migrasi menambahkan kolom dan tabel, mengaktifkan kebijakan akses, dan mempertahankan data yang sudah ada. Untuk instalasi baru, jalankan `supabase/schema.sql` dahulu, lalu kelima migrasi di atas. File skema awal berisi pembuatan policy/trigger, sehingga tidak perlu dijalankan ulang pada database lama.
 
-Pengelola yang sudah memiliki data order, produk, supplier, pengeluaran, catatan buyer, atau pengaturan otomatis dimasukkan ke `store_admins`. Akun baru tidak otomatis mendapat akses admin. Bila akun pengelola belum pernah menyimpan data, tambahkan **akun milikmu yang benar** dengan mengganti email pada SQL ini:
+Empat migrasi awal mempertahankan pengelola yang sudah memiliki data di `store_admins`. Migrasi khusus Miuu kemudian membatasi akses ke satu pemilik Miuu saja. Akun baru tidak otomatis mendapat akses admin. Bila akun pengelola belum pernah menyimpan data, tambahkan **akun milikmu yang benar** dengan mengganti email pada SQL ini:
 
 ```sql
 insert into public.store_admins(owner_id)
@@ -39,6 +51,8 @@ select id from auth.users
 where lower(email) = lower('EMAIL_ADMIN_MILIKMU')
 on conflict do nothing;
 ```
+
+Langkah penambahan admin di atas hanya untuk akun pemilik Miuu sebelum identitas dikunci. Akun lain yang ditambahkan setelahnya tetap tidak memperoleh akses atau toko baru.
 
 Bucket publik `miuu-assets` hanya untuk foto produk/logo. Upload dibatasi PNG, JPG, WebP, atau GIF maksimal 5 MB. Objek baru hanya dapat ditulis admin ke folder miliknya. Tabel order, modal, catatan pribadi, hash kode, dan kunci internal tetap tidak dapat dibaca pengunjung anonim.
 
@@ -63,8 +77,8 @@ Di Supabase Authentication, pastikan Site URL menggunakan domain toko dan izinka
 
 Masuk melalui `/admin/dashboard`, lalu:
 
-1. Buka **Katalog & toko**. Pertahankan slug `miuu` untuk katalog pada halaman utama. Atur nama, logo, tagline, header, footer, kategori, dan publikasi toko.
-2. Buka **Products**. Produk yang sama dipakai untuk pemesanan dan katalog. Aktifkan **Tampilkan di pricelist** pada produk yang ingin diumumkan. Produk lama tetap internal sampai dipilih untuk dipublikasikan.
+1. Buka **Katalog & toko**. Identitas Miuu Store dan halaman utama dikunci. Logo, tagline, header, footer, dan kategori tetap dapat diatur.
+2. Buka **Products**. Produk yang sama dipakai untuk pemesanan dan katalog. Aktifkan **Tampilkan di pricelist** pada produk yang ingin diumumkan. Migrasi khusus Miuu memublikasikan pricelist Miuu yang sudah ada. Produk baru tampil secara default; produk yang sengaja disembunyikan tetap internal. Gunakan **Publikasikan semua produk** untuk menampilkan seluruh produk Miuu.
 3. Isi varian dengan format `Nama Paket | Durasi = Harga`. Tanpa kelompok, gunakan `Durasi = Harga`. Nama paket dan urutannya bebas untuk seluruh aplikasi.
 4. Untuk Netflix, tombol **Isi 13 varian Netflix dari ketentuan** dapat digunakan pada produk Netflix yang sudah ada. Paket Semiprivate satu bulan menggunakan Rp45.000. Modal/supplier tidak diganti oleh template; periksa modal pada order sesuai varian.
 5. Isi **Tautan penjelasan produk** bila ingin menambahkan tautan referensi seperti WhatsApp Channel. Tautan channel sebenarnya tidak terdapat dalam lampiran, sehingga tidak diisi dengan alamat perkiraan.
@@ -84,7 +98,7 @@ Pengaturan program default berlaku untuk member baru. Program member lama dipert
 
 Pada program delapan stamp, member dibuat otomatis dari nomor WA yang valid pada transaksi yang memenuhi syarat. Nomor WA dipakai untuk mencocokkan transaksi berikutnya. Total stamp tetap dicatat; kartu menunjukkan delapan stamp penuh hingga transaksi berikutnya memulai siklus baru. Pembatalan, perubahan menjadi tidak lunas/refund, atau penurunan nilai di bawah batas menarik kembali credit transaksi. Hadiah otomatis yang belum dipakai ditarik bila ambangnya tidak lagi terpenuhi. Hadiah yang sudah dipakai tetap tercatat.
 
-Pada menu Loyalty club, admin dapat mengubah nama/nomor WA, menampilkan atau mengganti kode, menyalin tautan kartu, mengoreksi stamp dengan alasan, memberi hadiah manual, dan memperbarui status hadiah. Nama hadiah dan masa berlakunya dapat diatur; `0` hari berarti tanpa kedaluwarsa. Perubahan nama hadiah berlaku pada hadiah baru.
+Pada menu Loyalty club, admin dapat mengubah nama/nomor WA, menampilkan atau mengganti kode, menyalin tautan kartu, menambah atau mengurangi stamp dengan catatan opsional (server mengisi alasan audit otomatis jika kosong), memberi hadiah manual, dan memperbarui status hadiah. Nama hadiah dan masa berlakunya dapat diatur; `0` hari berarti tanpa kedaluwarsa. Perubahan nama hadiah berlaku pada hadiah baru.
 
 Kode member diverifikasi memakai hash dan disimpan terenkripsi agar admin pemiliknya dapat mengambilnya kembali. Kunci enkripsi berada pada schema privat database. Mengganti kode menutup sesi member lama. Member dapat membuka kartu dengan kode saja; Member ID juga tersedia untuk cara masuk yang lama.
 
