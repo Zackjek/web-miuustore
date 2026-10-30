@@ -2,6 +2,14 @@
 
 Website khusus Miuu Store untuk katalog publik, pengelolaan pesanan, loyalty, dan renewal Canva pada satu domain. Tidak menyediakan pendaftaran penjual atau toko lain. Proyek ini melanjutkan web order Miuu Store yang sudah ada.
 
+## Desain ungu dan micro-interaction
+
+Pembaruan visual dibuat dari `main` pada commit `d15265c` (upgrade, 30 Oktober 2026 pukul 21.38 WIB). Tombol Login Admin tetap terlihat di navigasi publik. Desain menggunakan lavender/lilac, ilustrasi kucing berpita, kupu-kupu, dan kartu stamp yang sama untuk admin serta member.
+
+Tombol memiliki respons tekan/hover, sparkle klik, fokus yang jelas, dan indikator proses. Stamp mendarat setelah jumlah stamp benar-benar bertambah; hadiah pada ambang program mendapat perayaan tersendiri. Animasi tidak diputar ulang pada refresh data, pergantian member, atau pengurangan stamp. Preferensi reduced motion mematikan gerakan dekoratif; feedback teks tetap tersedia.
+
+Perubahan ini tidak menambah dependensi atau migrasi database. Harga, program loyalty, data pesanan, logo/avatar, dan penguncian Miuu dipertahankan. Terapkan patch pada repo yang sudah diperbarui, lalu gunakan deployment Netlify yang sama.
+
 ## Halaman
 
 - `/`: pricelist publik dengan kategori, pencarian, stok, dan paket berkelompok.

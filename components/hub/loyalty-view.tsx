@@ -8,6 +8,8 @@ import { rewardState, rewardStateText } from "@/lib/loyalty";
 import type { LoyaltyMember } from "@/lib/unified-types";
 import { Field, useHub } from "./common";
 import StampCard from "../stamp-card";
+import { CuteKitten } from "../cute-art";
+import { HeartPlus, Minus } from "lucide-react";
 import { Button } from "../ui/button";
 import {
   Dialog,
@@ -39,6 +41,7 @@ export default function LoyaltyView({
     [credentials, setCredentials] = useState("");
   const [reason, setReason] = useState("");
   const [stampNotice, setStampNotice] = useState("");
+  const [stampPending, setStampPending] = useState<1 | -1 | null>(null);
   const member = data.members.find((m) => m.id === selected),
     members = data.members.filter((m) =>
       (m.name + " " + m.member_id).toLowerCase().includes(query.toLowerCase()),
@@ -64,9 +67,11 @@ export default function LoyaltyView({
       );
     }
   }
-  async function adjust(delta: number) {
+  async function adjust(delta: 1 | -1) {
     if (!member || hub.busy) return;
-    const ok = await hub.run({ kind: "stamp", member_id: member.id, delta, reason }, "POST", delta > 0 ? "Stamp ditambahkan" : "Stamp dikurangi");
+    setStampPending(delta);
+    const ok = await hub.run({ kind: "stamp", member_id: member.id, delta, reason }, "POST", delta > 0 ? "Stamp ditambahkan ♡" : "Stamp dikurangi");
+    setStampPending(null);
     if (ok) {
       setReason("");
       setStampNotice(delta > 0 ? `Satu stamp ditambahkan untuk ${member.name}.` : `Satu stamp dikurangi untuk ${member.name}.`);
@@ -123,16 +128,17 @@ export default function LoyaltyView({
             <button
               key={m.id}
               className={
-                "hub-list-row flex w-full items-center justify-between gap-3 text-left " +
+                "hub-list-row miuu-member-picker flex w-full items-center justify-between gap-3 text-left " +
                 (selected === m.id ? "text-primary" : "")
               }
               disabled={hub.busy}
               aria-pressed={selected === m.id}
               onClick={() => { setSelected(m.id); setReason(""); setStampNotice(""); }}
             >
-              <span>
-                <strong className="block text-sm">{m.name}</strong>
-                <span className="hub-muted">{m.member_id}</span>
+              <span className="miuu-member-name">
+                <span className="miuu-member-avatar"><CuteKitten /></span>
+                <span><strong className="block text-sm">{m.name}</strong>
+                <span className="hub-muted">{m.member_id}</span></span>
               </span>
               <span className="hub-pill">
                 {m.stamps}/{m.program === "classic10" ? 10 : 8} ♡
@@ -176,19 +182,23 @@ export default function LoyaltyView({
             </Field>
             <div className="hub-actions">
               <button
+                className="miuu-stamp-add"
+                aria-busy={stampPending === 1}
                 disabled={hub.busy}
                 onClick={() => void adjust(1)}
               >
-                {hub.busy ? "Memproses…" : "+ Add Stamp"}
+                {stampPending === 1 ? <span className="miuu-mini-spinner" aria-hidden="true" /> : <HeartPlus size={16} aria-hidden="true" />}
+                {stampPending === 1 ? "Menyimpan stamp…" : "+ Add Stamp"}
               </button>
               <button
+                aria-busy={stampPending === -1}
                 disabled={
                   hub.busy ||
                   member.total_stamps === 0
                 }
                 onClick={() => void adjust(-1)}
               >
-                − Kurangi stamp
+                <Minus size={14} aria-hidden="true" /> {stampPending === -1 ? "Menyimpan…" : "Kurangi stamp"}
               </button>
             </div>
             <p className="hub-muted mt-3">Catatan kosong dicatat otomatis sebagai penyesuaian admin.</p>

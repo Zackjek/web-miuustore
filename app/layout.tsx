@@ -1,6 +1,8 @@
 import type { Metadata } from "next";
 import "./globals.css";
 import "./unified.css";
+import "./cute.css";
+import CuteInteractions from "@/components/cute-interactions";
 
 export const metadata: Metadata = {
   title: "Miuu Store — little order studio",
@@ -23,7 +25,7 @@ export default function RootLayout({
 }: Readonly<{ children: React.ReactNode }>) {
   return (
     <html lang="id">
-      <body>{children}</body>
+      <body>{children}<CuteInteractions /></body>
     </html>
   );
 }

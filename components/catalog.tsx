@@ -8,7 +8,8 @@ import {
   RefreshCw,
   ChevronDown,
 } from "lucide-react";
-import { PublicShell, PixelCat, PixelBunny } from "./public-shell";
+import { PublicShell } from "./public-shell";
+import { CuteKitten, CuteButterfly, RibbonBow } from "./cute-art";
 import { groupVariants, minimumPrice } from "@/lib/catalog";
 import { moneyFmt } from "./order-types";
 import type {
@@ -49,7 +50,7 @@ export function ProductCard({
               loading="lazy"
             />
           ) : (
-            <PixelCat className="size-10 text-primary" />
+            <CuteKitten className="size-12 text-primary" />
           )}
         </div>
         <div className="min-w-0 flex-1">
@@ -190,29 +191,27 @@ export default function Catalog() {
           <span />
           <span />
           <span />
-          <p>welcome to our little corner</p>
+          <p>welcome to miuu’s little purple corner</p>
           <Sparkles size={15} />
         </div>
         <div className="miuu-hero-content">
-          <PixelBunny className="miuu-hero-bunny" />
-          <div className="miuu-hero-cat">
-            <PixelCat />
+          <div className="miuu-hero-copy">
+            <p className="miuu-eyebrow miuu-hero-label"><Heart size={13} aria-hidden="true" /> your little purple happy place</p>
+            <h1>{settings?.shop_name || "Miuu Store"}<span>♡</span></h1>
+            <p className="miuu-hero-tagline">{settings?.tagline || "a little happiness, in every order ♡"}</p>
+            <p className="miuu-hero-subtitle">{settings?.header_text || "Temukan aplikasi favorit dan paket yang pas untukmu."}</p>
+            <div className="miuu-hero-tags">
+              <span><Sparkles size={13} aria-hidden="true" /> Pilih paket favoritmu</span>
+              <span><Heart size={13} aria-hidden="true" /> Cek harga tanpa login</span>
+            </div>
           </div>
-          <p className="miuu-eyebrow">digital favorites, lovely prices</p>
-          <h1>
-            {settings?.shop_name || "Miuu Store"}
-            <span>✦</span>
-          </h1>
-          <p className="miuu-typewriter">
-            {settings?.tagline || "a little happiness, in every order ♡"}
-          </p>
-          <p className="miuu-hero-subtitle">
-            {settings?.header_text ||
-              "Temukan aplikasi favorit dan paket yang pas untukmu."}
-          </p>
-          <div className="miuu-hero-tags">
-            <span>✿ Pilih paket favoritmu</span>
-            <span>♡ Cek harga tanpa login</span>
+          <div className="miuu-hero-illustration" aria-hidden="true">
+            <div className="miuu-kitten-halo" />
+            <span className="miuu-art-heart">♡</span>
+            <CuteButterfly className="miuu-art-butterfly" />
+            <CuteKitten className="miuu-hero-kitten" />
+            <RibbonBow className="miuu-art-bow" />
+            <span className="miuu-art-sticker">sealed with a little love</span>
           </div>
         </div>
       </section>
@@ -314,7 +313,7 @@ export default function Catalog() {
           </div>
         ) : (
           <div className="miuu-empty">
-            <PixelCat className="size-14 text-primary" />
+            <CuteKitten className="size-14 text-primary" />
             <h3>
               {data?.products.length
                 ? "Belum ketemu, nih"

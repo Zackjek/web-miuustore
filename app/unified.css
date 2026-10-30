@@ -83,6 +83,15 @@
   background: var(--cute-lav);
   color: var(--primary);
 }
+.miuu-public-nav a.miuu-admin-entry {
+  gap: 6px;
+  background: var(--primary);
+  color: var(--primary-foreground);
+  white-space: nowrap;
+}
+.miuu-public-nav a.miuu-admin-entry:hover {
+  background: color-mix(in srgb, var(--primary) 88%, var(--foreground));
+}
 .miuu-theme {
   width: 44px;
   height: 44px;

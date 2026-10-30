@@ -117,3 +117,23 @@ test("damaged backups and duplicate legacy identifiers are rejected before impor
     }),
   );
 });
+
+
+test("stamp feedback celebrates a confirmed increase and the correct reward milestones", async () => {
+  const { stampFeedback } = await import("../lib/loyalty");
+  const before = { id: "miuu-member", total_stamps: 3 };
+  const current = { id: "miuu-member", total_stamps: 4, program: "miuu8" as const };
+  assert.equal(stampFeedback(before, current), "reward");
+  assert.equal(stampFeedback({ ...before, total_stamps: 7 }, { ...current, total_stamps: 8 }), "reward");
+  assert.equal(stampFeedback({ ...before, total_stamps: 8 }, { ...current, total_stamps: 9 }), "stamp");
+  assert.equal(stampFeedback({ ...before, total_stamps: 9 }, { ...current, total_stamps: 10, program: "classic10" }), "reward");
+  assert.equal(stampFeedback(before, { ...current, program: "classic10" }), "stamp");
+});
+test("refreshing, switching members, and retracting stamps never show a success celebration", async () => {
+  const { stampFeedback } = await import("../lib/loyalty");
+  const before = { id: "miuu-member", total_stamps: 4 };
+  const current = { id: "miuu-member", total_stamps: 4, program: "miuu8" as const };
+  assert.equal(stampFeedback(before, current), null);
+  assert.equal(stampFeedback(before, { ...current, total_stamps: 3 }), null);
+  assert.equal(stampFeedback(before, { ...current, id: "another-member", total_stamps: 20 }), null);
+});

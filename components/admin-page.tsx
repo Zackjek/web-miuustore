@@ -1,9 +1,10 @@
 "use client";
 import { useEffect, useState, type FormEvent } from "react";
 import Link from "next/link";
-import { ArrowLeft, ArrowRight, LockKeyhole } from "lucide-react";
+import { ArrowLeft, ArrowRight, LockKeyhole, LoaderCircle } from "lucide-react";
 import Workspace from "./workspace";
 import { MiuuCat } from "./miuu-cat";
+import { RibbonBow } from "./cute-art";
 import {
   authFetch,
   currentUser,
@@ -57,7 +58,7 @@ export default function AdminPage() {
   if (checking)
     return (
       <main
-        className="soft-bg flex min-h-screen items-center justify-center"
+        className="miuu-login soft-bg flex min-h-screen items-center justify-center"
         role="status"
       >
         Memeriksa sesi…
@@ -73,15 +74,15 @@ export default function AdminPage() {
       />
     );
   return (
-    <main className="soft-bg flex min-h-screen items-center justify-center px-4 py-10">
-      <div className="glass w-full max-w-[430px] rounded-[30px] p-7 sm:p-9">
+    <main className="miuu-login soft-bg flex min-h-screen items-center justify-center px-4 py-10">
+      <div className="miuu-login-card glass w-full max-w-[430px] rounded-[30px] p-7 sm:p-9">
         <Link
           href="/"
           className="mb-7 inline-flex min-h-10 items-center gap-2 text-sm text-muted-foreground"
         >
           <ArrowLeft size={16} /> Kembali ke pricelist
         </Link>
-        <MiuuCat className="mx-auto size-14" />
+        <div className="miuu-login-logo"><RibbonBow className="miuu-login-bow" /><MiuuCat className="mx-auto size-14" /></div>
         <h1 className="serif mt-5 text-center text-4xl">
           Miuu Store<span className="text-primary">.</span>
         </h1>
@@ -130,11 +131,12 @@ export default function AdminPage() {
             </p>
           )}
           <button
+            aria-busy={busy}
             disabled={busy}
             className="flex min-h-12 w-full items-center justify-center gap-2 rounded-xl bg-primary px-4 font-semibold text-primary-foreground disabled:opacity-60"
           >
             {busy ? "Memproses…" : reset ? "Kirim tautan pemulihan" : "Masuk"}
-            <ArrowRight size={17} />
+            {busy ? <LoaderCircle size={17} className="miuu-loading-icon" aria-hidden="true" /> : <ArrowRight size={17} />}
           </button>
         </form>
         <button

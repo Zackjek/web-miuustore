@@ -1,7 +1,7 @@
 "use client";
 import Link from "next/link";
 import { useEffect, useState, type ReactNode } from "react";
-import { Moon, Sun, ArrowUpRight } from "lucide-react";
+import { Moon, Sun, ArrowUpRight, LogIn } from "lucide-react";
 import { MiuuCat } from "./miuu-cat";
 export function PixelCat({ className = "" }: { className?: string }) {
   return (
@@ -106,6 +106,10 @@ export function PublicShell({
               aria-current={active === "loyalty" ? "page" : undefined}
             >
               Loyalty club
+            </Link>
+            <Link href="/admin/dashboard" className="miuu-admin-entry">
+              <LogIn size={16} aria-hidden="true" />
+              Login Admin
             </Link>
           </nav>
           <button
